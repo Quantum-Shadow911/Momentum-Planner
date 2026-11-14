@@ -25,7 +25,7 @@ jobs:
 
       - name: Build Momentum.app (universal)
         working-directory: electron
-        run: npx electron-builder --mac zip dmg --publish never
+        run: npx electron-builder --publish never
 
       - name: Release
         uses: softprops/action-gh-release@v2

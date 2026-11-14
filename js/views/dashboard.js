@@ -120,7 +120,7 @@
           <div class="mini-cal" id="miniCal"></div>
         </div>
         <div class="card">
-          <div class="card-title"><span>🗓 Next several days</span><button class="link-btn" data-go="monthly">Full calendar →</button></div>
+          <div class="card-title"><span>🗓 Next several days</span><button class="link-btn" data-go="dates">Full calendar →</button></div>
           <div class="grid grid-2" id="dashNextDays"></div>
         </div>
       </div>

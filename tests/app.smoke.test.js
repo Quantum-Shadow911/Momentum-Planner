@@ -77,8 +77,8 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(7);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.9-study-page');
-    expect(Store.get().settings.lastVersion).toBe('2.4.9-study-page');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.10-install-link');
+    expect(Store.get().settings.lastVersion).toBe('2.4.10-install-link');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(13);
     const navViews = [...document.querySelectorAll('.nav-item')].map(b => b.dataset.view);
@@ -237,6 +237,13 @@ describe('theme & interactions', () => {
     expect(document.getElementById('themeToggle').textContent).toContain('Auto');
     App.setTheme('light');
     expect(App.effectiveTheme()).toBe('light');
+  });
+
+  it('settings install card links to the real Mac app download', () => {
+    App.go('settings');
+    const link = document.querySelector('#viewHost a[href*="github.com/Quantum-Shadow911/Planner/releases/latest"]');
+    expect(link).toBeTruthy();
+    expect(link.textContent).toContain('Download Momentum for Mac');
   });
 
   it('settings offers the auto day/night theme choice', () => {

@@ -11,7 +11,7 @@ npm start          # serves at http://localhost:4173 (zero-dep Node server)
 …or open `index.html` directly in a browser, or host the folder statically (works on GitHub Pages).
 
 ```bash
-npm test           # run the 151-test suite (Important Dates replaces the standalone Calendar nav item) (Vitest + jsdom)
+npm test           # run the 152-test suite (Important Dates replaces the standalone Calendar nav item) (Vitest + jsdom)
 npm run test:watch
 ```
 

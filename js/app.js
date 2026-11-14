@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.4.9-study-page';
+  const APP_VERSION = '2.4.10-install-link';
 
   const NAV = [
     { section: 'Overview' },

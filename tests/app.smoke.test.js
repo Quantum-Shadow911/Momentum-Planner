@@ -74,8 +74,8 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(5);
     expect(Store.get().events.length).toBe(2);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.0.1-school-first');
-    expect(Store.get().settings.lastVersion).toBe('2.0.1-school-first');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.1.0-school-portal');
+    expect(Store.get().settings.lastVersion).toBe('2.1.0-school-portal');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(18);
     expect(document.getElementById('viewHost').innerHTML).toContain('Recommended next task');
@@ -311,5 +311,52 @@ describe('theme & interactions', () => {
     expect(results).toBeTruthy();
     UI.closeSearch ? null : null;
     document.getElementById('searchOverlay').classList.add('hidden');
+  });
+});
+
+describe('v2.1.0 app-level features', () => {
+  it('seed marks soccer practice as a weekly recurring event', () => {
+    const soccer = Store.get().events.find(e => e.id === 'evt-soccer');
+    expect(soccer).toBeTruthy();
+    expect(soccer.recurrence).toEqual({ type: 'weekly', interval: 1 });
+  });
+
+  it('dashboard offers the weekly academic review and its modal opens with content', () => {
+    App.go('dashboard');
+    const btn = document.getElementById('dashReview');
+    expect(btn).toBeTruthy();
+    btn.click();
+    const modal = document.querySelector('.modal-backdrop .modal');
+    expect(modal).toBeTruthy();
+    expect(modal.textContent).toContain('Weekly academic review');
+    expect(modal.textContent).toContain('Daily workload');
+    expect(modal.textContent).toContain('Overdue');
+    expect(modal.textContent).toContain('Soccer practice');
+    document.querySelector('.modal-backdrop [data-close]').click();
+  });
+
+  it('event cards show a recurrence badge', () => {
+    App.go('activities');
+    const host = document.getElementById('viewHost').textContent;
+    expect(host).toContain('every week');
+  });
+
+  it('settings shows the storage usage meter', () => {
+    App.go('settings');
+    const meter = document.getElementById('storageMeter');
+    expect(meter).toBeTruthy();
+    expect(meter.textContent).toContain('storage used');
+  });
+
+  it('daily planner shows a conflict banner for overlapping commitments', () => {
+    const st = Store.get();
+    const today = Utils.todayStr();
+    Store.saveEvent({ id: 'evt-test-conflict', title: 'Conflict event', date: today, time: '09:00', endTime: '10:00' });
+    Store.saveTask({ title: 'Timed conflict task', dueDate: today, time: '09:30', estimateMin: 60 });
+    App.go('daily');
+    expect(document.getElementById('viewHost').textContent).toContain('scheduling conflict');
+    Store.deleteEvent('evt-test-conflict');
+    const t = Store.get().tasks.find(x => x.title === 'Timed conflict task');
+    if (t) Store.deleteTask(t.id);
   });
 });

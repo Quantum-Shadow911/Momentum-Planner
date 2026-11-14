@@ -19,7 +19,13 @@
     const map = {};
     for (let i = 0; i < days; i++) {
       const d = global.Utils ? Utils.addDays(from, i) : null;
-      if (d) map[d] = Priority.workloadOn(state, d).total;
+      if (!d) continue;
+      const wl = Priority.workloadOn(state, d).total;
+      const evMin = Priority.eventsOn(state, d).reduce((sum, e) => {
+        const dur = e.endTime ? Utils.minutesOf(e.endTime) - Utils.minutesOf(e.time || e.endTime) : 60;
+        return sum + Math.max(0, dur);
+      }, 0);
+      map[d] = wl + evMin;
     }
     return map;
   }
@@ -230,8 +236,38 @@
     };
   }
 
+  /* Overlapping timed commitments on a date: events, timed study sessions and timed tasks. */
+  function conflictsOn(state, dateStr) {
+    const blocks = [];
+    Priority.eventsOn(state, dateStr).forEach(e => {
+      if (!e.time) return;
+      const start = Utils.minutesOf(e.time);
+      const end = e.endTime ? Math.max(start + 5, Utils.minutesOf(e.endTime)) : start + 60;
+      blocks.push({ kind: 'event', label: (e.icon ? e.icon + ' ' : '') + e.title, start, end });
+    });
+    Priority.sessionsOn(state, dateStr).forEach(({ session: sess, task: t }) => {
+      if (!sess.time) return;
+      const start = Utils.minutesOf(sess.time);
+      blocks.push({ kind: 'session', label: t.title, start, end: start + Math.max(5, sess.durationMin || 30) });
+    });
+    state.tasks.forEach(t => {
+      if (t.status === 'completed' || t.dueDate !== dateStr || !t.time) return;
+      const start = Utils.minutesOf(t.time);
+      blocks.push({ kind: 'task', label: t.title, start, end: start + Math.max(5, t.estimateMin || t.durationMin || 60) });
+    });
+    blocks.sort((a, b) => a.start - b.start);
+    const out = [];
+    for (let i = 0; i < blocks.length; i++) {
+      for (let j = i + 1; j < blocks.length; j++) {
+        if (blocks[j].start >= blocks[i].end) break;
+        out.push({ a: blocks[i], b: blocks[j] });
+      }
+    }
+    return out;
+  }
+
   const Planner = {
-    isBreakDay, breakOn, limitOf, loadMap,
+    isBreakDay, breakOn, limitOf, loadMap, conflictsOn,
     suggestDistribution, suggestReschedule, applySuggestion,
     TEMPLATES, buildFromTemplate
   };

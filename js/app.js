@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.0.1-school-first';
+  const APP_VERSION = '2.1.0-school-portal';
 
   const NAV = [
     { section: 'Overview' },
@@ -188,32 +188,44 @@
     if (!s.seeded || s.lastVersion === APP_VERSION) return;
     Store.updateSettings({ lastVersion: APP_VERSION });
     const hasSchool = Store.get().classes.length > 0;
-    if (hasSchool) return;
+    const freshStart = () => {
+      const fresh = Storage.emptyState();
+      fresh.settings = { ...Store.get().settings, seeded: true };
+      Store.replaceState(fresh);
+      App.loadSampleData();
+      UI.closeModal();
+      App.go('dashboard');
+      UI.toast('success', 'Fresh start ready', 'Your dashboard now shows the school portal with your period schedule.');
+    };
     UI.openModal({
-      title: '👋 Welcome to Momentum v' + APP_VERSION,
+      title: '\u{1F44B} Welcome to Momentum v' + APP_VERSION,
       body: `
-        <p style="margin-top:0;color:var(--text-2)">Your saved data carried over — nothing was lost. This version turns Momentum into a <strong>school-first planner</strong>, and your older data doesn't include the new school content yet.</p>
+        <p style="margin-top:0;color:var(--text-2)">Momentum is now a <strong>school portal</strong>: your class periods sit on the left of the dashboard, with your to-do list, exams, important dates and a calendar below.</p>
         <div class="detail-section">
           <h4>New in this version</h4>
           <ul style="margin:0;padding-left:18px;color:var(--text-2);line-height:1.7">
-            <li>📚 <strong>My Classes</strong> — subject workspaces with teachers & schedules</li>
-            <li>🧠 <strong>Study sessions</strong> — plan when you'll work, separate from deadlines</li>
-            <li>⚖ <strong>Balance workload</strong> — moves sessions off overloaded days (with your approval)</li>
-            <li>📄 <strong>Exams & Quizzes</strong>, 🗓️ <strong>Timetable</strong>, ⭐ <strong>Activities & Events</strong></li>
-            <li>📋 <strong>Assignment templates</strong>, ⏱ <strong>study timer</strong>, 📎 attachments, 🏖 school breaks</li>
+            <li>\u{1F3EB} <strong>School-portal dashboard</strong> \u2014 period schedule panel, to-do list, exams, dates, calendar</li>
+            <li>\u{1F315} <strong>Auto day/night theme</strong> \u2014 light in the daytime, dark at night</li>
+            <li>\u2696 <strong>Smarter workload balancing</strong> \u2014 avoids days packed with activities</li>
+            <li>\u{1F501} <strong>Recurring events</strong>, \u{1F4CB} <strong>weekly review</strong>, \u26A0 conflict warnings</li>
           </ul>
         </div>
-        <p class="muted small" style="margin-bottom:0">You can always load samples later from Settings → Danger zone → Load sample data.</p>`,
+        ${hasSchool
+          ? '<p class="muted small" style="margin-bottom:0"><strong>Start fresh</strong> replaces the old sample data with the new school sample (your real schedule). Choose <em>Keep my data</em> if you have added your own tasks.</p>'
+          : '<p class="muted small" style="margin-bottom:0">You can always load samples later from Settings \u2192 Danger zone.</p>'}`,
       buttons: [
         { label: 'Keep my data', class: 'btn-ghost', onClick: () => UI.closeModal() },
-        {
-          label: '📚 Load school sample data', class: 'btn-primary',
-          onClick: () => {
-            App.loadSampleData();
-            UI.toast('success', 'School sample data loaded', 'Explore My Classes, the weekly ⚖ Balance workload button and Exams & Quizzes.');
-            UI.closeModal();
-          }
-        }
+        hasSchool
+          ? { label: '\u{1F504} Start fresh with the new sample', class: 'btn-primary', onClick: freshStart }
+          : {
+              label: '\u{1F4DA} Load school sample data', class: 'btn-primary',
+              onClick: () => {
+                App.loadSampleData();
+                UI.closeModal();
+                App.go('dashboard');
+                UI.toast('success', 'School sample data loaded', 'Explore My Classes, the weekly \u2696 Balance workload button and Exams & Quizzes.');
+              }
+            }
       ]
     });
   }
@@ -273,7 +285,7 @@
     tasks.forEach(t => Store.saveTask(t));
 
     const events = [
-      { id: 'evt-soccer', title: 'Soccer practice', icon: '⚽', date: d(1), time: '18:00', endTime: '19:30', location: 'Main field', categoryId: 'cat-extracurricular', notes: 'Bring shin guards and water bottle.' },
+      { id: 'evt-soccer', title: 'Soccer practice', icon: '⚽', date: d(1), time: '18:00', endTime: '19:30', location: 'Main field', categoryId: 'cat-extracurricular', recurrence: { type: 'weekly', interval: 1 }, notes: 'Bring shin guards and water bottle.' },
       { id: 'evt-dentist', title: 'Dentist appointment', icon: '🏥', date: d(3), time: '10:30', endTime: '11:15', location: 'Dr. Patel', categoryId: 'cat-personal' }
     ];
     events.forEach(e => Store.saveEvent(e));

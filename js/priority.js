@@ -169,15 +169,59 @@
     });
   }
 
+  function eventOccursOn(e, dateStr) {
+    const r = e.recurrence;
+    if (!r || r.type === 'none' || dateStr < e.date) return false;
+    if (e.date === dateStr) return true;
+    const a = Utils.parseDate(e.date), b = Utils.parseDate(dateStr);
+    const diffDays = Math.round((b - a) / 86400000);
+    const sameDow = a.getDay() === b.getDay();
+    switch (r.type) {
+      case 'daily': return diffDays % Math.max(1, r.interval) === 0;
+      case 'weekly': return sameDow && (diffDays / 7) % Math.max(1, r.interval) === 0;
+      case 'biweekly': return sameDow && (diffDays / 14) % Math.max(1, r.interval) === 0;
+      case 'monthly': {
+        if (b.getDate() !== a.getDate()) return false;
+        const months = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+        return months > 0 && months % Math.max(1, r.interval) === 0;
+      }
+      case 'weekdays': {
+        if (b.getDay() === 0 || b.getDay() === 6) return false;
+        let count = 0;
+        for (let i = 1; i <= diffDays; i++) {
+          const dow = (a.getDay() + i) % 7;
+          if (dow !== 0 && dow !== 6) count++;
+        }
+        return count > 0 && count % Math.max(1, r.interval) === 0;
+      }
+      default: return false;
+    }
+  }
+
+  function recurrenceLabel(e) {
+    const r = e.recurrence;
+    if (!r || !r.type || r.type === 'none') return '';
+    const n = Math.max(1, r.interval || 1);
+    const unit = { daily: n === 1 ? 'day' : n + ' days', weekly: n === 1 ? 'week' : n + ' weeks', biweekly: n === 1 ? '2 weeks' : n + ' × 2 weeks', monthly: n === 1 ? 'month' : n + ' months', weekdays: n === 1 ? 'weekday' : n + ' weekdays' }[r.type];
+    return unit ? `🔁 every ${unit}` : '';
+  }
+
   function eventsOn(state, dateStr) {
-    return state.events.filter(e => e.date === dateStr)
+    const exact = state.events.filter(e => e.date === dateStr);
+    const virtual = state.events.filter(e => e.date !== dateStr && eventOccursOn(e, dateStr))
+      .map(e => Object.assign({}, e, { date: dateStr, recurring: true }));
+    return exact.concat(virtual)
       .sort((a, b) => (Utils.minutesOf(a.time) || 9999) - (Utils.minutesOf(b.time) || 9999));
   }
 
   function upcomingEvents(state, days, today) {
     today = today || Utils.todayStr();
-    const end = Utils.addDays(today, days == null ? 7 : days);
-    return state.events.filter(e => e.date >= today && e.date <= end).sort((a, b) => a.date.localeCompare(b.date));
+    const horizon = days == null ? 7 : days;
+    const out = [];
+    for (let i = 0; i <= horizon; i++) {
+      out.push(...eventsOn(state, Utils.addDays(today, i)));
+    }
+    return out.sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
   }
 
   function upcomingAssessments(state, days, today) {
@@ -244,8 +288,8 @@
   const Priority = {
     PRIO_WEIGHT, score, reason, recommended, isBlocked, blockingNames,
     isOverdue, isDueToday, overdueTasks, dueOn, allOn, upcoming, byDue, byTimeThenPrio, stats,
-    isAssessment, ASSESSMENT_TYPES, sessionsOn, eventsOn, upcomingEvents, upcomingAssessments,
-    workloadOn, schoolStats
+    isAssessment, ASSESSMENT_TYPES, sessionsOn, eventsOn, eventOccursOn, recurrenceLabel,
+    upcomingEvents, upcomingAssessments, workloadOn, schoolStats
   };
 
   global.Priority = Priority;

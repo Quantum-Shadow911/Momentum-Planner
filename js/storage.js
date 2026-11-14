@@ -176,6 +176,7 @@
       icon: str(e.icon).slice(0, 8) || '⭐',
       color: /^#[0-9a-fA-F]{6}$/.test(e.color || '') ? e.color : '#10b981',
       categoryId: str(e.categoryId) || null,
+      recurrence: normalizeRecurrence(e.recurrence),
       notes: str(e.notes).slice(0, 3000),
       createdAt: e.createdAt ? str(e.createdAt) : new Date().toISOString()
     };

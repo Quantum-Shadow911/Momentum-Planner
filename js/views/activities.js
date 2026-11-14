@@ -62,6 +62,7 @@
         <div class="task-title">${H(e.title)}</div>
         <div class="task-meta">
           <span class="badge" style="background:var(--green-soft);color:var(--green)">⭐ Event</span>
+          ${H(Priority.recurrenceLabel(e))}
           ${e.time ? `<span class="meta-txt">🕐 ${H(Utils.fmtTime(e.time))}${e.endTime ? '–' + H(Utils.fmtTime(e.endTime)) : ''}${dur ? ' (' + H(dur) + ')' : ''}</span>` : ''}
           ${e.location ? `<span class="meta-txt">📍 ${H(e.location)}</span>` : ''}
           ${e.notes ? `<span class="meta-txt">📝 ${H(e.notes.slice(0, 60))}</span>` : ''}
@@ -103,6 +104,16 @@
         </div>
         <div class="field-row">
           <div class="field"><label>Location</label><input class="input" id="evLoc" maxlength="120" value="${H(base.location)}" placeholder="e.g. Main field"></div>
+          <div class="field"><label>Repeats</label><select class="select" id="evRec">
+            <option value="" ${!base.recurrence || base.recurrence.type === 'none' ? 'selected' : ''}>Does not repeat</option>
+            <option value="weekly" ${base.recurrence && base.recurrence.type === 'weekly' ? 'selected' : ''}>Every week</option>
+            <option value="biweekly" ${base.recurrence && base.recurrence.type === 'biweekly' ? 'selected' : ''}>Every 2 weeks</option>
+            <option value="daily" ${base.recurrence && base.recurrence.type === 'daily' ? 'selected' : ''}>Every day</option>
+            <option value="weekdays" ${base.recurrence && base.recurrence.type === 'weekdays' ? 'selected' : ''}>Every weekday</option>
+            <option value="monthly" ${base.recurrence && base.recurrence.type === 'monthly' ? 'selected' : ''}>Every month</option>
+          </select></div>
+        </div>
+        <div class="field-row">
           <div class="field"><label>Category</label><select class="select" id="evCat">
             <option value="">None</option>
             ${state.categories.map(c => `<option value="${H(c.id)}" ${base.categoryId === c.id ? 'selected' : ''}>${H(c.icon)} ${H(c.name)}</option>`).join('')}
@@ -126,6 +137,7 @@
               location: document.getElementById('evLoc').value.trim(),
               icon: document.getElementById('evIcon').value,
               categoryId: document.getElementById('evCat').value || null,
+              recurrence: document.getElementById('evRec').value ? { type: document.getElementById('evRec').value, interval: 1 } : { type: 'none', interval: 1 },
               notes: document.getElementById('evNotes').value,
               color: e ? e.color : base.color
             });

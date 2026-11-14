@@ -14,6 +14,7 @@
     const timedSessions = sessions.filter(e => e.session.time);
     const looseSessions = sessions.filter(e => !e.session.time);
     const load = Priority.workloadOn(state, currentDate);
+    const conflicts = Planner.conflictsOn(state, currentDate);
 
     host.innerHTML = `
       <div class="page-head">
@@ -29,6 +30,11 @@
           ${load.total ? `<span class="badge ${load.total >= (state.settings.dailyLoadLimit || 180) ? 'badge-overdue' : 'badge-cat'}">⚖ ${Utils.fmtDuration(load.total)} planned</span>` : ''}
         </div>
       </div>
+      ${conflicts.length ? `<div class="card" style="padding:10px 18px;margin-bottom:14px;border-left:4px solid var(--red)">
+        <strong style="color:var(--red)">⚠ ${conflicts.length} scheduling conflict${conflicts.length > 1 ? 's' : ''}</strong>
+        <div class="muted small" style="margin-top:4px">${conflicts.slice(0, 4).map(c =>
+          `${H(c.a.label)} (${H(Utils.fmtTime(Utils.hhmm(c.a.start)))}–${H(Utils.fmtTime(Utils.hhmm(c.a.end)))}) overlaps ${H(c.b.label)} (${H(Utils.fmtTime(Utils.hhmm(c.b.start)))}–${H(Utils.fmtTime(Utils.hhmm(c.b.end)))})`).join('<br>')}</div>
+      </div>` : ''}
       ${Planner.breakOn(state, currentDate) ? `<div class="card" style="padding:10px 18px;margin-bottom:14px;border-left:4px solid var(--purple)">
         <strong>🏖 ${H(Planner.breakOn(state, currentDate).name)}</strong> <span class="muted small">— school break; planners skip this day when balancing workload.</span>
       </div>` : ''}

@@ -110,6 +110,11 @@
     return m ? Number(m[1]) * 60 + Number(m[2]) : null;
   }
 
+  function hhmm(mins) {
+    mins = ((Math.round(mins) % 1440) + 1440) % 1440;
+    return String(Math.floor(mins / 60)).padStart(2, '0') + ':' + String(mins % 60).padStart(2, '0');
+  }
+
   function fmtDuration(mins) {
     if (mins == null || isNaN(mins)) return '—';
     mins = Math.round(mins);
@@ -161,7 +166,7 @@
   const Utils = {
     DAY_MS, MONTHS, MONTHS_SHORT, DOW, DOW_SHORT,
     uid, todayStr, toDateStr, parseDate, addDays, addMonths, diffDays, daysUntil,
-    sameDay, startOfWeek, fmtDate, fmtDateSmart, fmtTime, minutesOf, fmtDuration,
+    sameDay, startOfWeek, fmtDate, fmtDateSmart, fmtTime, minutesOf, hhmm, fmtDuration,
     relDayLabel, escapeHtml, debounce, clamp, greeting, monthLabel, isWindows
   };
 

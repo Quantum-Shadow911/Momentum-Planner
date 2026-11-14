@@ -2,6 +2,24 @@
 (function (global) {
   'use strict';
 
+  function renderStorageMeter(el) {
+    if (!el) return;
+    let bytes = 0;
+    try { bytes = (localStorage.getItem('momentum.data.v1') || '').length * 2; } catch (e) { bytes = 0; }
+    const state = Store.get();
+    const atts = state.tasks.reduce((n, t) => n + ((t.attachments || []).length), 0);
+    const quota = 5 * 1024 * 1024;
+    const pct = Math.min(100, Math.round((bytes / quota) * 100));
+    const kb = Math.max(1, Math.round(bytes / 1024));
+    const warn = bytes > 4 * 1024 * 1024;
+    el.innerHTML = `
+      <div class="meter-row">
+        <span class="bar"><span class="bar-fill ${warn ? 'bar-red' : 'bar-green'}" style="width:${pct}%"></span></span>
+        <span class="muted small">${kb} KB of ~5 MB browser storage used (${pct}%)</span>
+      </div>
+      <div class="muted small">${atts} attachment${atts === 1 ? '' : 's'} stored${warn ? ' — <strong style="color:var(--red)">storage is nearly full; export a backup and remove large attachments.</strong>' : ''}</div>`;
+  }
+
   function render(host) {
     const state = Store.get();
     const s = state.settings;
@@ -71,6 +89,10 @@
             <button class="btn" id="exportBtn">⬇️ Export backup (JSON)</button>
             <button class="btn" id="importBtn">⬆️ Import backup</button>
             <input type="file" id="importFile" accept=".json,application/json" class="hidden">
+          </div>
+          <div class="detail-section">
+            <h4>Storage usage</h4>
+            <div id="storageMeter"></div>
           </div>
           <div class="detail-section">
             <h4>Automatic snapshots</h4>
@@ -185,6 +207,7 @@
 
     /* snapshots */
     const backupList = host.querySelector('#backupList');
+    renderStorageMeter(host.querySelector('#storageMeter'));
     const backups = Storage.listBackups();
     if (!backups.length) {
       backupList.innerHTML = `<div class="muted small">No snapshots yet — they are created automatically as you use the app.</div>`;

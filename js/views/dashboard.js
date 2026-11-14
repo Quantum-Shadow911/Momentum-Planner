@@ -38,6 +38,7 @@
           <input class="input" id="dashQuickTitle" placeholder="Quick add… (Enter) · clear the date to unschedule">
           <input class="input" id="dashQuickDate" type="date" value="${today}" style="flex:0 0 140px" title="Due date — clear for no date">
           <button class="btn btn-primary" id="dashQuickBtn">＋ Add</button>
+          <button class="btn btn-ghost" id="dashReview" title="Summarize unfinished work, upcoming tests, workload and activities">📋 Weekly review</button>
         </div>
       </div>
 
@@ -145,6 +146,7 @@
     };
     host.querySelector('#dashQuickBtn').addEventListener('click', doQuick);
     qi.addEventListener('keydown', e => { if (e.key === 'Enter') doQuick(); });
+    host.querySelector('#dashReview').addEventListener('click', openWeeklyReview);
 
     if (reco) {
       host.querySelector('#recoTitle').addEventListener('click', () => UI.openTaskViewer(reco.task.id));
@@ -219,6 +221,7 @@
             <div class="task-title">${H(e.icon)} ${H(e.title)}</div>
             <div class="task-meta">
               <span class="meta-txt">📅 ${H(Utils.fmtDateSmart(e.date))}${e.time ? ' · ' + H(Utils.fmtTime(e.time)) : ''}</span>
+              ${H(Priority.recurrenceLabel(e))}
               ${e.location ? `<span class="meta-txt">📍 ${H(e.location)}</span>` : ''}
             </div>
           </div>`;
@@ -347,6 +350,70 @@
     host.querySelector('#calToday').addEventListener('click', () => {
       calYear = now.getFullYear(); calMonth = now.getMonth();
       buildMiniCalendar(host, state);
+    });
+  }
+
+  function openWeeklyReview() {
+    const state = Store.get();
+    const today = Utils.todayStr();
+    const limit = state.settings.dailyLoadLimit || 180;
+    const open = state.tasks.filter(t => t.status !== 'completed');
+    const overdue = open.filter(t => Priority.isOverdue(t, today)).sort(Priority.byDue);
+    const week = Priority.upcoming(state, 7, today).filter(t => t.dueDate !== today);
+    const tests = Priority.upcomingAssessments(state, 14, today);
+    const evts = Priority.upcomingEvents(state, 7, today);
+    const doneWeek = state.tasks.filter(t => t.status === 'completed' && t.completedAt && t.completedAt.slice(0, 10) >= Utils.startOfWeek(today, state.settings.weekStartsOn));
+
+    const esc = H;
+    const taskLine = t => {
+      const cls = UI.classOf(t);
+      return `<div class="task-item" data-open="${esc(t.id)}">
+        <div class="task-main">
+          <div class="task-title">${esc(t.title)}</div>
+          <div class="task-meta">
+            ${cls ? `<span class="badge badge-cat"><span class="dot" style="background:${esc(cls.color)}"></span>${esc(cls.icon)} ${esc(cls.name)}</span>` : ''}
+            ${t.dueDate ? `<span class="meta-txt">due ${esc(Utils.fmtDateSmart(t.dueDate))}</span>` : '<span class="meta-txt">no deadline</span>'}
+            ${UI.prioBadge(t)}
+          </div>
+        </div>
+      </div>`;
+    };
+
+    const loadRows = [];
+    for (let i = 0; i < 7; i++) {
+      const d = Utils.addDays(today, i);
+      const load = Priority.workloadOn(state, d);
+      const evMin = Priority.eventsOn(state, d).reduce((sum, e) => {
+        const dur = e.endTime ? Utils.minutesOf(e.endTime) - Utils.minutesOf(e.time || e.endTime) : 60;
+        return sum + Math.max(0, dur);
+      }, 0);
+      const total = load.total + evMin;
+      const pct = Math.min(100, Math.round((total / limit) * 100));
+      const heavy = total > limit;
+      loadRows.push(`<div class="review-load-row">
+        <span class="review-load-day">${Utils.DOW_SHORT[Utils.parseDate(d).getDay()]} ${esc(Utils.fmtDateSmart(d))}${i === 0 ? ' (today)' : ''}</span>
+        <span class="bar"><span class="bar-fill ${heavy ? 'bar-red' : 'bar-green'}" style="width:${pct}%"></span></span>
+        <span class="review-load-val ${heavy ? 'tone-red' : ''}">${total ? esc(Utils.fmtDuration(total)) : '\u2014'}${heavy ? ' \u26a0 heavy' : ''}</span>
+      </div>`);
+    }
+
+    const sect = (title, inner, empty) => `<div class="review-sect"><div class="review-sect-title">${title}</div>${inner || `<div class="muted small">${empty}</div>`}</div>`;
+
+    const html = `
+      <div class="review-grid">
+        ${sect(`\u26a0 Overdue (${overdue.length})`, overdue.slice(0, 6).map(taskLine).join(''), 'Nothing overdue \u2014 great position for the week.' + (overdue.length > 6 ? `<div class="muted small">\u2026and ${overdue.length - 6} more in Assignments.</div>` : ''))}
+        ${sect(`📅 Due in the next 7 days (${week.length})`, week.slice(0, 8).map(taskLine).join(''), 'No deadlines in the next week.')}
+        ${sect(`📝 Upcoming tests & quizzes \u00b7 14 days (${tests.length})`, tests.slice(0, 6).map(taskLine).join(''), 'No tests scheduled.')}
+        ${sect('\u2b50 Activities & appointments \u00b7 7 days', evts.slice(0, 8).map(e => `<div class="task-item"><div class="task-main"><div class="task-title">${esc(e.icon)} ${esc(e.title)}</div><div class="task-meta"><span class="meta-txt">📅 ${esc(Utils.fmtDateSmart(e.date))}${e.time ? ' \u00b7 ' + esc(Utils.fmtTime(e.time)) : ''}</span>${esc(Priority.recurrenceLabel(e))}</div></div></div>`).join(''), 'Nothing scheduled this week.')}
+        ${sect('\u2696 Daily workload \u2014 next 7 days (limit ' + esc(Utils.fmtDuration(limit)) + ')', loadRows.join(''), '')}
+        ${sect('\u2705 Completed this week', `<div class="muted small">${doneWeek.length} task${doneWeek.length === 1 ? '' : 's'} completed since ${esc(Utils.fmtDateSmart(Utils.startOfWeek(today, state.settings.weekStartsOn)))}.</div>`, '<div class="muted small">Nothing completed yet this week.</div>')}
+      </div>
+      ${overdue.length ? '<div class="review-note">💡 Tip: use <b>\u2696 Smart reschedule</b> on the dashboard to move overdue work to realistic days.</div>' : ''}
+    `;
+
+    UI.openModal({ title: '📋 Weekly academic review', body: html, large: true, buttons: [{ label: 'Close' }] });
+    Array.from(document.querySelectorAll('.modal-backdrop .task-item[data-open]')).forEach(el => {
+      el.addEventListener('click', () => { UI.closeModal(); UI.openTaskViewer(el.dataset.open); });
     });
   }
 

@@ -53,6 +53,7 @@
         row.innerHTML = `
           <div class="task-main"><div class="task-title">${H(e.icon)} ${H(e.title)}</div>
           <div class="task-meta"><span class="badge" style="background:var(--green-soft);color:var(--green)">⭐ Event</span>
+          ${H(Priority.recurrenceLabel(e))}
           ${e.time ? `<span class="meta-txt">${H(Utils.fmtTime(e.time))}</span>` : ''}${e.location ? `<span class="meta-txt">📍 ${H(e.location)}</span>` : ''}</div></div>`;
         row.querySelector('.task-main').addEventListener('click', () => App.go('activities'));
         list.appendChild(row);

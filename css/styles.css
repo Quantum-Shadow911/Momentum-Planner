@@ -794,3 +794,21 @@ html[data-theme="dark"] .nav-item.active { color: #a5b4fc; }
   .dash-grid { grid-template-columns: 1fr; }
   .dash-side { position: static; }
 }
+
+/* Weekly review modal + storage meter */
+.review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.review-sect { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
+.review-sect-title { font-weight: 600; margin-bottom: 8px; font-size: 13.5px; }
+.review-load-row { display: flex; align-items: center; gap: 10px; padding: 3px 0; }
+.review-load-day { flex: 0 0 150px; font-size: 13px; color: var(--text-2); }
+.review-load-val { flex: 0 0 90px; text-align: right; font-size: 12.5px; color: var(--text-2); }
+.review-note { margin-top: 14px; padding: 10px 14px; border-radius: var(--radius); background: var(--surface-3); font-size: 13.5px; }
+.bar { flex: 1; height: 8px; border-radius: 99px; background: var(--surface-3); overflow: hidden; display: inline-block; }
+.bar-fill { display: block; height: 100%; border-radius: 99px; transition: width .3s ease; }
+.bar-green { background: var(--green); }
+.bar-red { background: var(--red); }
+.meter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+@media (max-width: 720px) {
+  .review-grid { grid-template-columns: 1fr; }
+  .review-load-day { flex-basis: 110px; }
+}

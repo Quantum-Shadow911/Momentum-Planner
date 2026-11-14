@@ -11,7 +11,7 @@ npm start          # serves at http://localhost:4173 (zero-dep Node server)
 …or open `index.html` directly in a browser, or host the folder statically (works on GitHub Pages).
 
 ```bash
-npm test           # run the 101-test suite (Vitest + jsdom)
+npm test           # run the 120-test suite (Vitest + jsdom)
 npm run test:watch
 ```
 
@@ -19,7 +19,7 @@ npm run test:watch
 
 | Area | What's included |
 |---|---|
-| **Dashboard** | School-first overview: greeting + date, stat tiles (due today / assignments due soon / upcoming assessments / overdue), ✨ recommended next task with reasoning, today's priorities, today's planned study sessions (toggleable), overdue panel, upcoming deadlines, tests & quizzes ahead, extracurricular schedule, recently completed, next-4-days preview with ⚖ workload badges, inline quick-add (date optional — undated tasks land in the Inbox) |
+| **Dashboard** | School-portal layout — class period schedule panel on the left (with live “now” highlight), to-do list, exams & quizzes, important dates, activities, mini month calendar and next-days preview; auto day/night theme (dark at night, light in daytime); greeting + date, stat tiles (due today / assignments due soon / upcoming assessments / overdue), ✨ recommended next task with reasoning, today's priorities, today's planned study sessions (toggleable), overdue panel, upcoming deadlines, tests & quizzes ahead, extracurricular schedule, recently completed, next-4-days preview with ⚖ workload badges, inline quick-add (date optional — undated tasks land in the Inbox) |
 | **My Classes** | Subject workspaces with teacher, room, icon & color, recurring class schedule slots; per-class view of assignments, upcoming tests, completed work, related notes and auto-calculated progress |
 | **Assignments & study sessions** | Tasks support class, assignment type (homework / essay / project / lab / reading / revision / test-prep / quiz / test) and submission status (not started / working / ready / submitted — filterable); each assignment can carry multiple planned **study sessions** with date, time, duration and objective, toggleable from the dashboard, daily planner, weekly board and task viewer |
 | **Assignment templates** | One-click templates (homework, essay, lab report, project, exam prep, reading) that pre-fill type, checklist and a realistic session plan spread before the due date, skipping breaks |
@@ -31,6 +31,10 @@ npm run test:watch
 | **Planning views** | Daily (hour-by-hour grid with timed sessions, drag to reschedule), Weekly (7-day board with ⚖ daily workload totals, heavy-load warnings and one-click **⚖ Balance workload** approval flow), Monthly calendar (overdue vs. deadline highlighting, events + break shading in cells, 3-month term overview, day dialog), Timetable (weekly class-schedule grid), Agenda (chronological groups incl. events, overdue & undated), Kanban (4 status columns with drag & drop) — all synchronized through a single store |
 | **Smart scheduling** | ⚖ Balance workload: moves study sessions off overloaded days to the lightest feasible day (before the due date, skipping breaks) with an approve/reject dialog; ⚖ Smart reschedule: relocates overdue work and missed sessions to realistic new days; both never change anything without your approval |
 | **Activities & events** | Dedicated events view for extracurriculars: icon, time range, location, category, notes; upcoming 30 days grouped by date with collapsible history; events appear alongside tasks in the calendar but behave differently (no completion, no priority) |
+| **Recurring events** | Events can repeat daily / weekdays / weekly / biweekly / monthly (with interval) — shown with a 🔁 badge, expanded automatically across the calendar, daily/weekly planners, agenda and dashboard |
+| **Weekly academic review** | One-click 📋 Weekly review on the dashboard: overdue work, deadlines and tests ahead, per-day workload bars vs. your limit, activities, and completed-this-week summary |
+| **Conflict detection** | The daily planner warns when timed events, study sessions or timed tasks overlap |
+| **Storage meter** | Settings shows how much of the ~5 MB browser storage is in use and counts attachments, warning near the limit |
 | **Categories** | 9 seeded categories; full CRUD with icon + color picker |
 | **Smart prioritization** | Weighted scoring: deadline proximity, overdue boost, assigned priority, in-progress momentum, quick-win bonus, long-task drag for far-out work, dependency blocking (blocked tasks are never recommended) |
 | **Projects & goals** | Milestones with due dates, linked tasks, auto-calculated progress, status/priority, links & notes; goals with milestone progress and target dates |

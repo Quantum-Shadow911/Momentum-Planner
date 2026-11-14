@@ -32,6 +32,39 @@
       <div class="muted small">${atts} attachment${atts === 1 ? '' : 's'} stored${warn ? ' — <strong style="color:var(--red)">storage is nearly full; export a backup and remove large attachments.</strong>' : ''}</div>`;
   }
 
+  function openAccountDetails() {
+    const prof = Auth.sessionProfile();
+    if (!prof) return;
+    UI.openModal({
+      title: 'Account details',
+      body: `
+        <div class="field"><label>Your name</label><input class="input" id="adName" maxlength="40" value="${H(prof.name)}" placeholder="e.g. Alex"></div>
+        <div class="field"><label>Username</label><input class="input" id="adUser" maxlength="20" value="${H(prof.username || '')}" placeholder="e.g. alex"></div>
+        <div class="field"><label>Email</label><input class="input" id="adEmail" maxlength="120" value="${H(prof.email || '')}" placeholder="you@example.com"></div>
+        <div class="form-error" id="adErr"></div>`,
+      buttons: [
+        { label: 'Cancel', class: 'btn-ghost', onClick: () => UI.closeModal() },
+        {
+          label: 'Save details', class: 'btn-primary',
+          onClick: () => {
+            const err = document.getElementById('adErr');
+            const name = document.getElementById('adName').value.trim();
+            if (!name) { err.textContent = 'Please enter your name.'; return false; }
+            const res = Auth.completeProfile(prof.id, document.getElementById('adUser').value, document.getElementById('adEmail').value);
+            if (res.error) { err.textContent = res.error; return false; }
+            const list = Auth.profiles();
+            const me = list.find(p => p.id === prof.id);
+            if (me) { me.name = name.slice(0, 40); }
+            try { localStorage.setItem(Auth.PROFILES_KEY, JSON.stringify(list)); } catch (e) { /* ignore */ }
+            UI.toast('success', 'Account updated', 'Details saved.');
+            UI.closeModal();
+            App.startApp(prof.id);
+          }
+        }
+      ]
+    });
+  }
+
   function openChangePassword() {
     const prof = Auth.sessionProfile();
     if (!prof) return;
@@ -79,8 +112,11 @@
           <div class="field"><label>Your name (used in the dashboard greeting)</label>
             <input class="input" id="setName" maxlength="60" value="${H(s.userName)}" placeholder="e.g. Alex"></div>
           <div class="settings-row">
-            <div><div class="s-label">Signed in as</div><div class="s-desc">${prof ? H(prof.icon + ' ' + prof.name) : 'No profile'}${prof && prof.passHash ? ' · password protected' : ' · no password'}</div></div>
-            <button class="btn" id="changePw">🔑 ${prof && prof.passHash ? 'Change password' : 'Add password'}</button>
+            <div><div class="s-label">Account</div><div class="s-desc">${prof ? H(prof.icon + ' ' + prof.name) + (prof.username ? ' · @' + H(prof.username) : '') + (prof.email ? ' · ' + H(prof.email) : '') + (prof.passHash ? ' · password protected' : ' · no password') : 'No account'}</div></div>
+            <div class="row">
+              <button class="btn" id="editAccount">👤 Account details</button>
+              <button class="btn" id="changePw">🔑 ${prof && prof.passHash ? 'Change password' : 'Add password'}</button>
+            </div>
           </div>
           <div class="settings-row">
             <div><div class="s-label">Version</div><div class="s-desc">Momentum v${H(App.version)} — school-first edition with classes, study sessions, workload balancing, exams, templates, timer, attachments and breaks.</div></div>
@@ -256,6 +292,7 @@
     const backupList = host.querySelector('#backupList');
     renderStorageMeter(host.querySelector('#storageMeter'));
     host.querySelector('#changePw').addEventListener('click', openChangePassword);
+    host.querySelector('#editAccount').addEventListener('click', openAccountDetails);
     const backups = Storage.listBackups();
     if (!backups.length) {
       backupList.innerHTML = `<div class="muted small">No snapshots yet — they are created automatically as you use the app.</div>`;

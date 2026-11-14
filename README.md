@@ -11,7 +11,7 @@ npm start          # serves at http://localhost:4173 (zero-dep Node server)
 …or open `index.html` directly in a browser, or host the folder statically (works on GitHub Pages).
 
 ```bash
-npm test           # run the 128-test suite (Important Dates replaces the standalone Calendar nav item) (Vitest + jsdom)
+npm test           # run the 131-test suite (Important Dates replaces the standalone Calendar nav item) (Vitest + jsdom)
 npm run test:watch
 ```
 
@@ -36,7 +36,7 @@ npm run test:watch
 | **Weekly academic review** | One-click 📋 Weekly review on the dashboard: overdue work, deadlines and tests ahead, per-day workload bars vs. your limit, activities, and completed-this-week summary |
 | **Conflict detection** | The daily planner warns when timed events, study sessions or timed tasks overlap |
 | **Storage meter** | Settings shows how much of the ~5 MB browser storage is in use and counts attachments, warning near the limit |
-| **Login / lock screen** | Built-in per-person profiles (no third-party accounts): each person picks their name + avatar and an optional password (min 4 characters) on a lock screen before entering; each profile has fully separate data, and a 🔒 Lock button / Settings → change password controls access. Existing data is automatically moved into the first profile created. Note: it's a device-level lock, not bank-grade security — data stays in the browser |
+| **Login / accounts** | Built-in per-person accounts (no third-party logins): sign up with a name, username, email + password (min 4 characters), then sign in with your username **or** email + password. Profiles created in earlier versions get a one-time "Finish setting up your account" prompt to pick a username + email (they can still sign in with their display name until then). Each account has fully separate data, and a 🔒 Lock button / Settings → Account details & change password controls access. Note: accounts are stored only in this browser — there's no server, no password reset, and no cross-device sync; it's a lock, not bank-grade security |
 | **Save health** | Boot-time storage probe: a red banner explains how to fix blocked storage (private mode / cookies), a file:// banner points to the live site, and a "Saved HH:MM" indicator in the sidebar proves saving works |
 | **Categories** | 9 seeded categories; full CRUD with icon + color picker |
 | **Smart prioritization** | Weighted scoring: deadline proximity, overdue boost, assigned priority, in-progress momentum, quick-win bonus, long-task drag for far-out work, dependency blocking (blocked tasks are never recommended) |

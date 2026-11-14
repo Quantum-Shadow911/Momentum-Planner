@@ -51,33 +51,83 @@
     return loadProfiles().find(p => p.id === sid) || null;
   }
 
-  function createProfile(name, icon, password) {
-    const clean = String(name || '').trim().slice(0, 40);
-    if (!clean) return { error: 'Please enter a name.' };
-    if (password && String(password).length < 4) return { error: 'Password must be at least 4 characters — or leave it empty for no password.' };
+  const USERNAME_RE = /^[a-zA-Z0-9._-]{3,20}$/;
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+  function validateUsername(username, list, exceptId) {
+    const u = String(username || '').trim();
+    if (!u) return { error: 'Please choose a username.' };
+    if (!USERNAME_RE.test(u)) return { error: 'Usernames are 3–20 characters: letters, numbers, dots, dashes or underscores.' };
+    if (list.some(p => p.id !== exceptId && (p.username || '').toLowerCase() === u.toLowerCase())) return { error: 'That username is already taken.' };
+    return { value: u };
+  }
+
+  function validateEmail(email, list, exceptId) {
+    const e = String(email || '').trim();
+    if (!e) return { error: 'Please enter an email.' };
+    if (!EMAIL_RE.test(e)) return { error: 'That email doesn\u2019t look right — check for typos.' };
+    if (list.some(p => p.id !== exceptId && (p.email || '').toLowerCase() === e.toLowerCase())) return { error: 'That email is already used by another account.' };
+    return { value: e };
+  }
+
+  function createProfile(fields) {
+    fields = fields || {};
+    const clean = String(fields.name || '').trim().slice(0, 40);
+    if (!clean) return { error: 'Please enter your name.' };
     const list = loadProfiles();
-    if (list.some(p => p.name.toLowerCase() === clean.toLowerCase())) return { error: 'A person with that name already exists.' };
+    const u = validateUsername(fields.username, list);
+    if (u.error) return u;
+    const e = validateEmail(fields.email, list);
+    if (e.error) return e;
+    const password = fields.password;
+    if (!password || String(password).length < 4) return { error: 'Password must be at least 4 characters.' };
     const salt = Utils.uid('s');
     const p = {
       id: Utils.uid('prof'),
       name: clean,
-      icon: icon || '🙂',
-      salt: password ? salt : null,
-      passHash: password ? hash(String(password), salt) : null,
+      username: u.value,
+      email: e.value,
+      icon: fields.icon || '🙂',
+      salt,
+      passHash: hash(String(password), salt),
       createdAt: new Date().toISOString()
     };
     list.push(p);
-    if (!saveProfiles(list)) return { error: 'Could not save the profile — your browser is blocking storage.' };
+    if (!saveProfiles(list)) return { error: 'Could not save the account — your browser is blocking storage.' };
     return { profile: p };
   }
 
-  function login(id, password) {
-    const p = loadProfiles().find(x => x.id === id);
+  /* Older profiles (created before usernames) can sign in with their display name. */
+  function findAccount(idOr) {
+    const q = String(idOr || '').trim().toLowerCase();
+    if (!q) return null;
+    return loadProfiles().find(p =>
+      (p.username || '').toLowerCase() === q ||
+      (p.email || '').toLowerCase() === q ||
+      (p.name || '').toLowerCase() === q) || null;
+  }
+
+  function login(idOr, password) {
+    const p = findAccount(idOr);
     if (!p) return false;
     if (p.passHash && hash(String(password || ''), p.salt) !== p.passHash) return false;
     try { global.localStorage.setItem(SESSION_KEY, JSON.stringify({ profileId: p.id, at: Date.now() })); }
     catch (e) { return false; }
     return true;
+  }
+
+  function completeProfile(id, username, email) {
+    const list = loadProfiles();
+    const p = list.find(x => x.id === id);
+    if (!p) return { error: 'Account not found.' };
+    const u = validateUsername(username, list, id);
+    if (u.error) return u;
+    const e = validateEmail(email, list, id);
+    if (e.error) return e;
+    p.username = u.value;
+    p.email = e.value;
+    if (!saveProfiles(list)) return { error: 'Could not save — your browser is blocking storage.' };
+    return { ok: true };
   }
 
   function logout() {
@@ -132,8 +182,8 @@
 
   const Auth = {
     PROFILES_KEY, SESSION_KEY, DATA_BASE, BACKUP_BASE,
-    hash, profiles, sessionProfile, createProfile, login, logout,
-    setPassword, deleteProfile, migrateLegacy, hasLegacy
+    hash, profiles, sessionProfile, createProfile, findAccount, completeProfile, login, logout,
+    setPassword, deleteProfile, migrateLegacy, hasLegacy, USERNAME_RE, EMAIL_RE
   };
 
   global.Auth = Auth;

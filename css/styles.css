@@ -886,3 +886,6 @@ html[data-theme="dark"] .nav-item.active { color: #a5b4fc; }
 }
 .profile-chip .profile-avatar { font-size: 16px; }
 @media (max-width: 480px) { .login-profiles { grid-template-columns: repeat(2, 1fr); } }
+.login-form-title { font-size: 17px; font-weight: 700; margin-bottom: 12px; }
+.login-sub-left { color: var(--text-2); font-size: 13.5px; margin-bottom: 12px; line-height: 1.5; }
+.login-alt { text-align: center; margin-top: 14px; font-size: 13.5px; color: var(--text-2); }

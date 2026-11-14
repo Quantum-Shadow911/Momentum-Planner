@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.4.0-login';
+  const APP_VERSION = '2.4.1-accounts';
 
   const NAV = [
     { section: 'Overview' },
@@ -259,6 +259,8 @@
     else showLogin();
   }
 
+  let appWired = false;
+
   function startApp(profileId) {
     const profile = profileId ? Auth.profiles().find(p => p.id === profileId) : Auth.sessionProfile();
     if (!profile) { showLogin(); return; }
@@ -269,7 +271,25 @@
     if (lr) lr.remove();
     Store.init();
     applyTheme();
+    if (!appWired) { wireApp(); appWired = true; }
 
+    const vEl = document.getElementById('appVersion');
+    if (vEl) vEl.textContent = 'Momentum v' + APP_VERSION;
+    showStorageBanners();
+    renderProfileChip(profile);
+    const lockBtn = document.getElementById('lockBtn');
+    if (lockBtn) {
+      lockBtn.style.display = '';
+      lockBtn.onclick = () => { Auth.logout(); boot(); };
+    }
+    if (!Store.get().settings.userName) Store.updateSettings({ userName: profile.name });
+    seedIfEmpty();
+    renderTimerWidget();
+    go('dashboard');
+    maybeShowUpgrade();
+  }
+
+  function wireApp() {
     document.getElementById('quickAddBtn').addEventListener('click', () => UI.quickAdd());
     document.getElementById('menuBtn').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
     document.getElementById('themeToggle').addEventListener('click', () => {
@@ -289,26 +309,12 @@
       }
     });
 
-    const vEl = document.getElementById('appVersion');
-    if (vEl) vEl.textContent = 'Momentum v' + APP_VERSION;
-    showStorageBanners();
+    setInterval(applyTheme, 10 * 60 * 1000);
     Store.subscribe(rerender);
     Store.subscribe(updateSaveStatus);
-    renderProfileChip(profile);
-    const lockBtn = document.getElementById('lockBtn');
-    if (lockBtn) {
-      lockBtn.style.display = '';
-      lockBtn.addEventListener('click', () => { Auth.logout(); window.location.reload(); });
-    }
-    if (!Store.get().settings.userName) Store.updateSettings({ userName: profile.name });
-    setInterval(applyTheme, 10 * 60 * 1000);
-    seedIfEmpty();
     Reminders.start();
     Timer.init();
     Timer.onTick(renderTimerWidget);
-    renderTimerWidget();
-    go('dashboard');
-    maybeShowUpgrade();
 
     window.addEventListener('resize', Utils.debounce(() => {
       if (currentView === 'analytics' && !UI.modalIsOpen()) Views.analytics.render(document.getElementById('viewHost'));
@@ -418,98 +424,105 @@
     if (appEl) appEl.style.display = 'none';
     let root = document.getElementById('loginRoot');
     if (!root) { root = document.createElement('div'); root.id = 'loginRoot'; document.body.appendChild(root); }
-    const list = Auth.profiles();
-    const legacy = Auth.hasLegacy();
-    root.innerHTML = `
-      <div class="login-wrap">
-        <div class="login-card">
-          <div class="login-brand"><span class="brand-mark">⚡</span><span class="brand-name">Momentum</span></div>
-          <div class="login-sub">Who's planning?</div>
-          <div class="login-profiles" id="loginProfiles"></div>
-          <div class="login-note">Each person gets their own private planner, saved only in this browser. This lock screen keeps profiles separate — it's a lock, not bank-level security.${legacy ? '<br><strong>Your existing planner data will be moved into the first profile you create.</strong>' : ''}</div>
-          <div id="loginForm"></div>
-        </div>
-      </div>`;
-    if (!Storage.probe().ok) {
-      const warn = document.createElement('div');
-      warn.className = 'form-error';
-      warn.style.marginBottom = '12px';
-      warn.textContent = '\u26A0\uFE0F Your browser is blocking saving \u2014 new profiles won\u2019t be kept. Don\u2019t use a Private/Incognito window, and allow cookies & site data for this site.';
-      root.querySelector('.login-card').insertBefore(warn, root.querySelector('.login-note'));
-    }
-    const grid = root.querySelector('#loginProfiles');
 
-    function form(html) {
-      root.querySelector('#loginForm').innerHTML = html;
-      const cancel = root.querySelector('#loginCancel');
-      if (cancel) cancel.addEventListener('click', () => showLogin());
-    }
-
-    function finishLogin(id) {
+    function finishLogin(profile) {
+      if (!profile) { renderSignIn(); return; }
+      if (!profile.username || !profile.email) { askAccountDetails(profile); return; }
       root.remove();
-      startApp(id);
+      startApp(profile.id);
     }
 
-    function askPassword(p) {
-      if (!p.passHash) { finishLogin(p.id); return; }
-      form(`
-        <div class="field"><label>Password for ${H(p.name)}</label><input class="input" type="password" id="loginPw"></div>
+    function askAccountDetails(profile) {
+      renderShell(`
+        <div class="login-form-title">Finish setting up your account</div>
+        <div class="login-sub-left">Choose a username and enter your email for <strong>${H(profile.name)}</strong>.</div>
+        <div class="field"><label>Username *</label><input class="input" id="suUser" maxlength="20" placeholder="e.g. alex" value="${H(profile.username || '')}"></div>
+        <div class="field"><label>Email *</label><input class="input" id="suEmail" maxlength="120" placeholder="you@example.com" value="${H(profile.email || '')}"></div>
         <div class="form-error" id="loginErr"></div>
-        <div class="row">
-          <button class="btn btn-primary" id="loginGo">Unlock</button>
-          <button class="btn btn-ghost" id="loginCancel">Back</button>
-        </div>`);
-      const tryPw = () => {
-        if (Auth.login(p.id, root.querySelector('#loginPw').value)) finishLogin(p.id);
-        else root.querySelector('#loginErr').textContent = 'Wrong password — try again.';
-      };
-      root.querySelector('#loginGo').addEventListener('click', tryPw);
-      root.querySelector('#loginPw').addEventListener('keydown', e => { if (e.key === 'Enter') tryPw(); });
-      root.querySelector('#loginPw').focus();
-    }
-
-    function addForm() {
-      form(`
-        <div class="field"><label>Your name *</label><input class="input" id="npName" maxlength="40" placeholder="e.g. Advait"></div>
-        <div class="field"><label>Avatar</label><select class="select" id="npIcon">${AVATAR_CHOICES.map(i => `<option ${i === '🙂' ? 'selected' : ''}>${i}</option>`).join('')}</select></div>
-        <div class="field-row">
-          <div class="field"><label>Password (optional)</label><input class="input" type="password" id="npPw" placeholder="At least 4 characters"></div>
-          <div class="field"><label>Repeat password</label><input class="input" type="password" id="npPw2"></div>
-        </div>
-        <div class="form-error" id="npErr"></div>
-        <div class="row">
-          <button class="btn btn-primary" id="npCreate">Create profile</button>
-          ${list.length ? '<button class="btn btn-ghost" id="loginCancel">Back</button>' : ''}
-        </div>`);
-      root.querySelector('#npName').focus();
-      root.querySelector('#npCreate').addEventListener('click', () => {
-        const errEl = root.querySelector('#npErr');
-        const name = root.querySelector('#npName').value;
-        const pw = root.querySelector('#npPw').value;
-        const pw2 = root.querySelector('#npPw2').value;
-        if (pw !== pw2) { errEl.textContent = 'The two passwords don\u2019t match.'; return; }
-        const res = Auth.createProfile(name, root.querySelector('#npIcon').value, pw);
-        if (res.error) { errEl.textContent = res.error; return; }
-        const isFirst = list.length === 0;
-        if (isFirst && legacy) Auth.migrateLegacy(res.profile.id);
-        Auth.login(res.profile.id, pw);
-        finishLogin(res.profile.id);
+        <button class="btn btn-primary btn-block" id="suGo">Save & continue</button>`);
+      root.querySelector('#suGo').addEventListener('click', () => {
+        const res = Auth.completeProfile(profile.id, root.querySelector('#suUser').value, root.querySelector('#suEmail').value);
+        if (res.error) { root.querySelector('#loginErr').textContent = res.error; return; }
+        root.remove();
+        startApp(profile.id);
       });
-      root.querySelector('#npName').addEventListener('keydown', e => { if (e.key === 'Enter') root.querySelector('#npCreate').click(); });
+      root.querySelector('#suUser').focus();
     }
 
-    list.forEach(p => {
-      const card = document.createElement('button');
-      card.className = 'login-profile';
-      card.innerHTML = `<span class="login-avatar">${H(p.icon)}</span><span class="login-name">${H(p.name)}</span><span class="login-lock">${p.passHash ? '🔒' : ''}</span>`;
-      card.addEventListener('click', () => askPassword(p));
-      grid.appendChild(card);
-    });
-    const add = document.createElement('button');
-    add.className = 'login-profile login-profile-add';
-    add.innerHTML = `<span class="login-avatar">＋</span><span class="login-name">Add person</span>`;
-    add.addEventListener('click', addForm);
-    grid.appendChild(add);
+    function renderShell(formHtml) {
+      const legacy = Auth.hasLegacy();
+      root.innerHTML = `
+        <div class="login-wrap">
+          <div class="login-card">
+            <div class="login-brand"><span class="brand-mark">⚡</span><span class="brand-name">Momentum</span></div>
+            ${!Storage.probe().ok ? '<div class="form-error" style="margin-bottom:12px">⚠️ Your browser is blocking saving — accounts you create won\u2019t be kept. Don\u2019t use a Private/Incognito window, and allow cookies & site data for this site.</div>' : ''}
+            <div id="loginForm">${formHtml}</div>
+            <div class="login-note">Accounts are stored only in this browser — there\u2019s no server, and each person gets their own separate planner. This is a lock, not bank-grade security.${legacy ? '<br><strong>Your existing planner data will be moved into the first account you create.</strong>' : ''}</div>
+          </div>
+        </div>`;
+      const cancel = root.querySelector('#loginCancel');
+      if (cancel) cancel.addEventListener('click', renderSignIn);
+    }
+
+    function renderSignIn() {
+      renderShell(`
+        <div class="login-form-title">Sign in</div>
+        <div class="field"><label>Username or email</label><input class="input" id="liUser" maxlength="120" placeholder="e.g. alex or you@example.com" autocomplete="username"></div>
+        <div class="field"><label>Password</label><input class="input" type="password" id="liPw" autocomplete="current-password"></div>
+        <div class="form-error" id="loginErr"></div>
+        <button class="btn btn-primary btn-block" id="liGo">Sign in</button>
+        <div class="login-alt">New here? <button class="link-btn" id="toSignUp">Create an account</button></div>`);
+      const go = () => {
+        const id = root.querySelector('#liUser').value;
+        const pw = root.querySelector('#liPw').value;
+        if (!id.trim()) { root.querySelector('#loginErr').textContent = 'Enter your username or email.'; return; }
+        if (Auth.login(id, pw)) finishLogin(Auth.sessionProfile());
+        else root.querySelector('#loginErr').textContent = 'Wrong username/email or password — try again.';
+      };
+      root.querySelector('#liGo').addEventListener('click', go);
+      root.querySelector('#liPw').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+      root.querySelector('#liUser').addEventListener('keydown', e => { if (e.key === 'Enter') root.querySelector('#liPw').focus(); });
+      root.querySelector('#toSignUp').addEventListener('click', renderSignUp);
+      root.querySelector('#liUser').focus();
+    }
+
+    function renderSignUp() {
+      renderShell(`
+        <div class="login-form-title">Create your account</div>
+        <div class="field"><label>Your name *</label><input class="input" id="suName" maxlength="40" placeholder="e.g. Alex"></div>
+        <div class="field-row">
+          <div class="field"><label>Username *</label><input class="input" id="suUser" maxlength="20" placeholder="e.g. alex" autocomplete="username"></div>
+          <div class="field"><label>Avatar</label><select class="select" id="suIcon">${AVATAR_CHOICES.map(i => `<option ${i === AVATAR_CHOICES[0] ? 'selected' : ''}>${i}</option>`).join('')}</select></div>
+        </div>
+        <div class="field"><label>Email *</label><input class="input" id="suEmail" maxlength="120" placeholder="you@example.com" autocomplete="email"></div>
+        <div class="field-row">
+          <div class="field"><label>Password *</label><input class="input" type="password" id="suPw" placeholder="At least 4 characters" autocomplete="new-password"></div>
+          <div class="field"><label>Repeat password *</label><input class="input" type="password" id="suPw2" autocomplete="new-password"></div>
+        </div>
+        <div class="form-error" id="loginErr"></div>
+        <button class="btn btn-primary btn-block" id="suGo">Create account</button>
+        <div class="login-alt">Already have an account? <button class="link-btn" id="toSignIn">Sign in</button></div>`);
+      root.querySelector('#toSignIn').addEventListener('click', renderSignIn);
+      root.querySelector('#suGo').addEventListener('click', () => {
+        const err = root.querySelector('#loginErr');
+        const pw = root.querySelector('#suPw').value;
+        if (pw !== root.querySelector('#suPw2').value) { err.textContent = 'The two passwords don\u2019t match.'; return; }
+        const res = Auth.createProfile({
+          name: root.querySelector('#suName').value,
+          username: root.querySelector('#suUser').value,
+          email: root.querySelector('#suEmail').value,
+          icon: root.querySelector('#suIcon').value,
+          password: pw
+        });
+        if (res.error) { err.textContent = res.error; return; }
+        if (Auth.profiles().length === 1 && Auth.hasLegacy()) Auth.migrateLegacy(res.profile.id);
+        Auth.login(res.profile.username, pw);
+        finishLogin(res.profile);
+      });
+      root.querySelector('#suName').focus();
+    }
+
+    renderSignIn();
   }
 
   const App = { boot, startApp, go, setTheme, applyTheme, effectiveTheme, version: APP_VERSION, openTask: id => UI.openTaskViewer(id), loadSampleData, openSearch, storageWarning: () => storageProbe };

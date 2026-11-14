@@ -11,7 +11,7 @@ npm start          # serves at http://localhost:4173 (zero-dep Node server)
 …or open `index.html` directly in a browser, or host the folder statically (works on GitHub Pages).
 
 ```bash
-npm test           # run the 144-test suite (Important Dates replaces the standalone Calendar nav item) (Vitest + jsdom)
+npm test           # run the 146-test suite (Important Dates replaces the standalone Calendar nav item) (Vitest + jsdom)
 npm run test:watch
 ```
 
@@ -36,6 +36,7 @@ npm run test:watch
 | **Weekly academic review** | One-click 📋 Weekly review on the dashboard: overdue work, deadlines and tests ahead, per-day workload bars vs. your limit, activities, and completed-this-week summary |
 | **Conflict detection** | The daily planner warns when timed events, study sessions or timed tasks overlap |
 | **Storage meter** | Settings shows how much of the ~5 MB browser storage is in use and counts attachments, warning near the limit |
+| **Real Mac app (.app)** | A genuine macOS application is built automatically by GitHub Actions (Electron, universal Apple Silicon + Intel) and published to [Releases](../../releases) as a .dmg/.zip. Drag to Applications; first open needs a one-time right-click → Open (unsigned free app). The app loads the live planner, so content updates itself automatically |
 | **Installable app (PWA)** | Install Momentum from the live site with its own icon and window: Mac Safari → Share → **Add to Dock**; Chrome/Edge → install icon in the address bar; iPhone/iPad → Share → **Add to Home Screen**. Works offline once installed (service worker with network-first updates). Instructions are also in Settings → Install as an app |
 | **Login / accounts** | Built-in per-person accounts (no third-party logins): sign up with a name, username, email + password (min 4 characters), then sign in with your username **or** email + password. New accounts start completely fresh (no sample data — only the owner account keeps the built-in class schedule; sample data removed from other accounts on login, and "Load sample data" in the Danger zone keeps samples if you want them). Profiles created in earlier versions get a one-time "Finish setting up your account" prompt to pick a username + email (they can still sign in with their display name until then). Each account has fully separate data, and a 🔒 Lock button / Settings → Account details & change password controls access. Accounts can be deleted in Settings → Danger zone → Delete account (requires typing the name). Note: accounts are stored only in this browser — there's no server, no password reset, and no cross-device sync; it's a lock, not bank-grade security |
 | **Save health** | Boot-time storage probe: a red banner explains how to fix blocked storage (private mode / cookies), a file:// banner points to the live site, and a "Saved HH:MM" indicator in the sidebar proves saving works |

@@ -54,6 +54,27 @@ describe('PWA install support', () => {
     expect(app).toContain("location.protocol === 'https:'");
   });
 
+  it('desktop app shell is valid and loads the live site', () => {
+    const main = readFileSync(root + 'electron/main.js', 'utf8');
+    expect(() => new Function(main)).not.toThrow();
+    expect(main).toContain('https://quantum-shadow911.github.io/Planner/');
+    expect(main).toContain('new BrowserWindow');
+    const pkg = JSON.parse(readFileSync(root + 'electron/package.json', 'utf8'));
+    expect(pkg.productName).toBe('Momentum');
+    expect(pkg.build.appId).toContain('momentum');
+    expect(JSON.stringify(pkg.build.mac.target)).toContain('universal');
+    expect(pkg.build.mac.identity).toBeNull();
+    expect(existsSync(root + 'electron/offline.html')).toBe(true);
+  });
+
+  it('mac build workflow packages and releases the app', () => {
+    const wf = readFileSync(root + '.github/workflows/build-app.yml', 'utf8');
+    expect(wf).toContain('runs-on: macos-latest');
+    expect(wf).toContain('electron-builder');
+    expect(wf).toContain('action-gh-release');
+    expect(wf).toContain('contents: write');
+  });
+
   it('launcher file redirects to the live site (one-time download, always up to date)', () => {
     const launcher = readFileSync(root + 'Open-Momentum.html', 'utf8');
     expect(launcher).toContain('https://quantum-shadow911.github.io/Planner/');

@@ -1,0 +1,62 @@
+name: Build Mac app
+
+on:
+  push:
+    branches: [vibe/productivity-planner-3356e7]
+    paths: ['electron/**', '.github/workflows/build-app.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install build dependencies
+        working-directory: electron
+        run: npm install --no-audit --no-fund
+
+      - name: Build Momentum.app (universal)
+        working-directory: electron
+        run: npx electron-builder --mac zip dmg --publish never
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app-v2.4.7
+          name: Momentum for Mac (v2.4.7)
+          body: |
+            **Momentum as a real Mac application (.app).**
+
+            ## How to install
+            1. Download **Momentum-universal.dmg** (or the .zip)
+            2. Open the downloaded file
+            3. Drag **Momentum** into your **Applications** folder
+            4. Open Momentum from Applications
+
+            ## First open (one time only)
+            Because the app is free and not sold on the Mac App Store, macOS shows a
+            one-time warning. To open it:
+            - **Right-click** the Momentum app → click **Open** → click **Open** again, **or**
+            - System Settings → Privacy & Security → scroll down → **Open Anyway**
+
+            ## Updates
+            The app loads the planner live, so its content updates itself automatically —
+            no reinstalling. Your data is stored inside the app's own profile on this Mac.
+
+            ## Notes
+            - Universal build: works on both Apple Silicon (M1/M2/M3/M4) and Intel Macs
+            - The app is unsigned (no Apple Developer account), so macOS shows the
+              one-time warning above — this is normal for free open-source apps
+          files: |
+            electron/dist/*.zip
+            electron/dist/*.dmg
+          draft: false
+          prerelease: false

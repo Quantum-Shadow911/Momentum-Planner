@@ -84,6 +84,7 @@ describe('account data layer', () => {
     expect(res.profile.passHash).toBeTruthy();
     const list = JSON.parse(dom.window.localStorage.getItem(Auth.PROFILES_KEY));
     delete list.find(p => p.id === res.profile.id).fresh;
+    list.find(p => p.id === res.profile.id).keepSample = true;
     dom.window.localStorage.setItem(Auth.PROFILES_KEY, JSON.stringify(list));
     expect(Auth.createProfile(acct({ name: 'Other', email: 'other@example.com' })).error).toContain('taken');
     expect(Auth.createProfile(acct({ name: 'Other', username: 'alex2' })).error).toContain('already used');
@@ -131,6 +132,45 @@ describe('account data layer', () => {
     expect(Auth.deleteProfile(prof.id, 'temp person').ok).toBe(true);
     expect(Auth.profiles().some(p => p.id === prof.id)).toBe(false);
     expect(dom.window.localStorage.getItem('momentum.data.v1.' + prof.id)).toBeNull();
+  });
+
+  it('the Advait Anand account keeps the sample classes', () => {
+    const prof = Auth.createProfile(acct({ name: 'Advait Anand', username: 'advait', email: 'advait@example.com' })).profile;
+    Storage.setProfile(prof.id);
+    App.startApp(prof.id);
+    expect(Store.get().classes.length).toBe(7);
+    expect(Store.get().classes[0].teacher).toContain('Khichadia');
+    Auth.logout();
+    App.boot();
+  });
+
+  it('other accounts start completely fresh and sample data never comes back', () => {
+    const prof = Auth.createProfile(acct({ name: 'Other Kid', username: 'otherkid', email: 'ok@example.com' })).profile;
+    Storage.setProfile(prof.id);
+    App.startApp(prof.id);
+    expect(Store.get().classes.length).toBe(0);
+    Store.saveTask({ title: 'My own task' });
+    App.startApp(prof.id);
+    expect(Store.get().classes.length).toBe(0);
+    expect(Store.get().tasks.some(t => t.title === 'My own task')).toBe(true);
+    Auth.logout();
+    App.boot();
+  });
+
+  it('accounts created before fresh-mode lose the untouched sample data on login', () => {
+    const prof = Auth.createProfile(acct({ name: 'Older Account', username: 'older', email: 'older@example.com' })).profile;
+    const list = JSON.parse(dom.window.localStorage.getItem(Auth.PROFILES_KEY));
+    delete list.find(p => p.id === prof.id).fresh;
+    dom.window.localStorage.setItem(Auth.PROFILES_KEY, JSON.stringify(list));
+    Storage.setProfile(prof.id);
+    Store.replaceState(Storage.emptyState());
+    App.loadSampleData();
+    Store.persist();
+    App.startApp(prof.id);
+    expect(Store.get().classes.length).toBe(0);
+    expect(Store.get().breaks.length).toBe(0);
+    Auth.logout();
+    App.boot();
   });
 
   it('new accounts start completely fresh (no sample classes or tasks)', () => {

@@ -411,7 +411,7 @@
         message: 'Adds example tasks, projects, goals and notes so you can explore the app. Your existing data is kept.',
         confirmLabel: 'Load samples'
       });
-      if (ok) { App.loadSampleData(); UI.toast('success', 'Sample data loaded', 'Explore the dashboard, planner views and analytics.'); }
+      if (ok) { App.loadSampleData(); Store.updateSettings({ sampleKept: true }); UI.toast('success', 'Sample data loaded', 'Explore the dashboard, planner views and analytics.'); }
     });
     host.querySelector('#deleteAccount').addEventListener('click', async () => {
       const prof = Auth.sessionProfile();

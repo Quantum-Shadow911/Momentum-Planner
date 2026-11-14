@@ -165,6 +165,15 @@
     return { ok: true };
   }
 
+  /* Flag the owner profile so its sample classes are never purged. */
+  function markKeepSample(id) {
+    const list = loadProfiles();
+    const p = list.find(x => x.id === id);
+    if (!p || p.keepSample) return;
+    p.keepSample = true;
+    saveProfiles(list);
+  }
+
   /* Move pre-login data (momentum.data.v1) into the first profile created. */
   function migrateLegacy(profileId) {
     try {
@@ -184,7 +193,7 @@
   const Auth = {
     PROFILES_KEY, SESSION_KEY, DATA_BASE, BACKUP_BASE,
     hash, profiles, sessionProfile, createProfile, findAccount, completeProfile, login, logout,
-    setPassword, deleteProfile, migrateLegacy, hasLegacy, USERNAME_RE, EMAIL_RE
+    setPassword, deleteProfile, markKeepSample, migrateLegacy, hasLegacy, USERNAME_RE, EMAIL_RE
   };
 
   global.Auth = Auth;

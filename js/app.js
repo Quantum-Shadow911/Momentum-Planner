@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.4.3-danger-corner';
+  const APP_VERSION = '2.4.4-fresh-fix';
 
   const NAV = [
     { section: 'Overview' },
@@ -154,11 +154,26 @@
   }
 
   /* ---------- Sample data (first run / optional) ---------- */
+  const SAMPLE_CLASS_IDS = ['cls-sci', 'cls-pe', 'cls-strings', 'cls-math', 'cls-reading', 'cls-la', 'cls-ss'];
+
+  /* Only the owner profile keeps the built-in sample classes. Everyone else
+     gets a completely fresh planner: sample classes and the sample break are
+     removed on login (unless they chose "Load sample data" themselves). */
+  function purgeSample(profile) {
+    if (!profile || profile.keepSample) return;
+    const state = Store.get();
+    if (state.settings.sampleKept) return;
+    const classes = state.classes.filter(c => !SAMPLE_CLASS_IDS.includes(c.id));
+    const breaks = state.breaks.filter(b => b.name !== 'Winter break');
+    if (classes.length === state.classes.length && breaks.length === state.breaks.length) return;
+    Store.update(s => { s.classes = classes; s.breaks = breaks; }, { type: 'sample-purged' });
+  }
+
   function seedIfEmpty(profile) {
     const state = Store.get();
-    if (profile && profile.fresh) {
-      /* New accounts start completely empty: no sample tasks, classes,
-         teachers, events or breaks — just the category framework. */
+    if (!profile || !profile.keepSample) {
+      /* Fresh start: no sample tasks, classes, teachers, events or breaks —
+         just the category framework. */
       if (!state.categories.length) seedCategories();
       state.settings.seeded = true;
       state.settings.lastVersion = APP_VERSION;
@@ -294,7 +309,12 @@
       lockBtn.style.display = '';
       lockBtn.onclick = () => { Auth.logout(); boot(); };
     }
+    if (!profile.keepSample && (profile.name || '').toLowerCase().includes('advait')) {
+      Auth.markKeepSample(profile.id);
+      profile.keepSample = true;
+    }
     if (!Store.get().settings.userName) Store.updateSettings({ userName: profile.name });
+    purgeSample(profile);
     seedIfEmpty(profile);
     renderTimerWidget();
     go('dashboard');

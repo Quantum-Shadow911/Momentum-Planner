@@ -14,7 +14,7 @@ globalThis.localStorage = dom.window.localStorage;
 globalThis.HTMLCanvasElement = dom.window.HTMLCanvasElement;
 
 /* Pre-seed a logged-in profile so boot starts the app directly */
-dom.window.localStorage.setItem('momentum.profiles.v1', JSON.stringify([{ id: 'prof-test', name: 'Tester', icon: '🧪', salt: null, passHash: null, createdAt: '2026-01-01T00:00:00.000Z' }]));
+dom.window.localStorage.setItem('momentum.profiles.v1', JSON.stringify([{ id: 'prof-test', name: 'Tester', icon: '🧪', salt: null, passHash: null, createdAt: '2026-01-01T00:00:00.000Z', keepSample: true }]));
 dom.window.localStorage.setItem('momentum.session.v1', JSON.stringify({ profileId: 'prof-test' }));
 
 
@@ -76,8 +76,8 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(7);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.3-danger-corner');
-    expect(Store.get().settings.lastVersion).toBe('2.4.3-danger-corner');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.4-fresh-fix');
+    expect(Store.get().settings.lastVersion).toBe('2.4.4-fresh-fix');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(12);
     const navViews = [...document.querySelectorAll('.nav-item')].map(b => b.dataset.view);

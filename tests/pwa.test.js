@@ -39,7 +39,7 @@ describe('PWA install support', () => {
 
   it('service worker caches the app shell, refreshes on navigation and cleans old caches', () => {
     const sw = readFileSync(root + 'sw.js', 'utf8');
-    expect(sw).toContain("const CACHE = 'momentum-v2.4.6'");
+    expect(sw).toContain("const CACHE = 'momentum-v2.4.7'");
     expect(sw).toContain("addEventListener('install'");
     expect(sw).toContain("addEventListener('activate'");
     expect(sw).toContain("addEventListener('fetch'");
@@ -52,6 +52,12 @@ describe('PWA install support', () => {
     const app = readFileSync(root + 'js/app.js', 'utf8');
     expect(app).toContain("navigator.serviceWorker.register('sw.js')");
     expect(app).toContain("location.protocol === 'https:'");
+  });
+
+  it('launcher file redirects to the live site (one-time download, always up to date)', () => {
+    const launcher = readFileSync(root + 'Open-Momentum.html', 'utf8');
+    expect(launcher).toContain('https://quantum-shadow911.github.io/Planner/');
+    expect(launcher).toContain('location.replace');
   });
 
   it('settings page explains how to install on each platform', () => {

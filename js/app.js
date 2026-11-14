@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.4.6-pwa';
+  const APP_VERSION = '2.4.7-launcher';
 
   const NAV = [
     { section: 'Overview' },

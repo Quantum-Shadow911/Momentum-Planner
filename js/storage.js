@@ -2,8 +2,17 @@
 (function (global) {
   'use strict';
 
-  const KEY = 'momentum.data.v1';
-  const BACKUP_KEY = 'momentum.backups.v1';
+  const BASE_KEY = 'momentum.data.v1';
+  const BASE_BACKUP_KEY = 'momentum.backups.v1';
+  let KEY = BASE_KEY;
+  let BACKUP_KEY = BASE_BACKUP_KEY;
+
+  function setProfile(profileId) {
+    KEY = profileId ? BASE_KEY + '.' + profileId : BASE_KEY;
+    BACKUP_KEY = profileId ? BASE_BACKUP_KEY + '.' + profileId : BASE_BACKUP_KEY;
+  }
+
+  function key() { return KEY; }
   const MAX_BACKUPS = 5;
   const MAX_TRASH = 100;
 
@@ -474,6 +483,7 @@
 
   const Storage = {
     KEY, PRIORITIES, STATUSES, RECURRENCE_TYPES, ASSIGNMENT_TYPES, SUBMISSION_STATES, MAX_ATTACHMENT_BYTES,
+    setProfile, key,
     emptyState, normalize, normalizeTask, normalizeProject, normalizeGoal, normalizeNote, normalizeCategory, normalizeClass, normalizeEvent, normalizeSession, normalizeAttachment, normalizeBreak,
     load, save, lastSave, probe, snapshot, listBackups, restoreBackup, pushTrash, restoreFromTrash, exportJson, importJson
   };

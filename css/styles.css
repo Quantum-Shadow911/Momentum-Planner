@@ -838,3 +838,51 @@ html[data-theme="dark"] .nav-item.active { color: #a5b4fc; }
 }
 .storage-banner-info strong { color: var(--accent); }
 .storage-banner .icon-btn { flex: 0 0 auto; }
+
+/* ---------- Lock screen (login) + profile chip ---------- */
+.login-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: linear-gradient(160deg, var(--bg, #f6f7fb) 0%, var(--surface-2, #eceef5) 100%);
+  overflow-y: auto;
+}
+.login-card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow, 0 10px 40px rgba(0,0,0,.08));
+  padding: 28px 26px;
+}
+.login-brand { display: flex; align-items: center; gap: 10px; justify-content: center; font-size: 20px; font-weight: 800; }
+.login-brand .brand-mark { font-size: 24px; }
+.login-sub { text-align: center; color: var(--text-2); margin: 10px 0 18px; font-size: 15px; }
+.login-profiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.login-profile {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 14px 8px 10px;
+  background: var(--surface-2, #f6f7fb);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform .12s ease, border-color .12s ease;
+  font: inherit;
+}
+.login-profile:hover { transform: translateY(-2px); border-color: var(--accent); }
+.login-profile-add { border-style: dashed; color: var(--text-2); }
+.login-avatar { font-size: 28px; line-height: 1; }
+.login-name { font-size: 13px; font-weight: 600; }
+.login-lock { font-size: 11px; min-height: 14px; }
+.login-note { font-size: 12.5px; color: var(--text-3, var(--text-2)); text-align: center; margin-bottom: 14px; line-height: 1.5; }
+.profile-chip {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 4px 0 6px; font-size: 12.5px; font-weight: 600;
+}
+.profile-chip .profile-avatar { font-size: 16px; }
+@media (max-width: 480px) { .login-profiles { grid-template-columns: repeat(2, 1fr); } }

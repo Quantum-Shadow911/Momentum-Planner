@@ -6,7 +6,7 @@
 <meta name="description" content="Momentum — an all-in-one productivity planner for tasks, projects, goals and schedules.">
 <title>Momentum · Productivity Planner</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
-<link rel="stylesheet" href="css/styles.css?v=2.3.6">
+<link rel="stylesheet" href="css/styles.css?v=2.4.0">
 </head>
 <body>
 <div id="app">
@@ -21,6 +21,8 @@
       <button class="btn btn-ghost btn-block" id="themeToggle" title="Toggle light / dark theme">🌙 <span>Dark mode</span></button>
       <div class="muted small" id="appVersion" style="text-align:center;padding:2px 0 6px"></div>
       <div class="small" id="saveStatus" style="text-align:center;padding:0 0 6px;font-size:11px"></div>
+      <div class="profile-chip" id="profileChip" style="display:none"></div>
+      <button class="btn btn-ghost btn-block" id="lockBtn" style="display:none" title="Lock the planner and switch person">🔒 Lock</button>
     </div>
   </aside>
 
@@ -46,26 +48,27 @@
   </div>
 </div>
 
-<script src="js/utils.js?v=2.3.6"></script>
-<script src="js/storage.js?v=2.3.6"></script>
-<script src="js/store.js?v=2.3.6"></script>
-<script src="js/priority.js?v=2.3.6"></script>
-<script src="js/planner.js?v=2.3.6"></script>
-<script src="js/timer.js?v=2.3.6"></script>
-<script src="js/charts.js?v=2.3.6"></script>
-<script src="js/reminders.js?v=2.3.6"></script>
-<script src="js/ui.js?v=2.3.6"></script>
-<script src="js/views/dashboard.js?v=2.3.6"></script>
-<script src="js/views/classes.js?v=2.3.6"></script>
-<script src="js/views/activities.js?v=2.3.6"></script>
-<script src="js/views/exams.js?v=2.3.6"></script>
-<script src="js/views/tasks.js?v=2.3.6"></script>
-<script src="js/views/dates.js?v=2.3.6"></script>
-<script src="js/views/daily.js?v=2.3.6"></script>
-<script src="js/views/monthly.js?v=2.3.6"></script>
-<script src="js/views/agenda.js?v=2.3.6"></script>
-<script src="js/views/analytics.js?v=2.3.6"></script>
-<script src="js/views/settings.js?v=2.3.6"></script>
-<script src="js/app.js?v=2.3.6"></script>
+<script src="js/utils.js?v=2.4.0"></script>
+<script src="js/auth.js?v=2.4.0"></script>
+<script src="js/storage.js?v=2.4.0"></script>
+<script src="js/store.js?v=2.4.0"></script>
+<script src="js/priority.js?v=2.4.0"></script>
+<script src="js/planner.js?v=2.4.0"></script>
+<script src="js/timer.js?v=2.4.0"></script>
+<script src="js/charts.js?v=2.4.0"></script>
+<script src="js/reminders.js?v=2.4.0"></script>
+<script src="js/ui.js?v=2.4.0"></script>
+<script src="js/views/dashboard.js?v=2.4.0"></script>
+<script src="js/views/classes.js?v=2.4.0"></script>
+<script src="js/views/activities.js?v=2.4.0"></script>
+<script src="js/views/exams.js?v=2.4.0"></script>
+<script src="js/views/tasks.js?v=2.4.0"></script>
+<script src="js/views/dates.js?v=2.4.0"></script>
+<script src="js/views/daily.js?v=2.4.0"></script>
+<script src="js/views/monthly.js?v=2.4.0"></script>
+<script src="js/views/agenda.js?v=2.4.0"></script>
+<script src="js/views/analytics.js?v=2.4.0"></script>
+<script src="js/views/settings.js?v=2.4.0"></script>
+<script src="js/app.js?v=2.4.0"></script>
 </body>
 </html>

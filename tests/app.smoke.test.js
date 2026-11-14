@@ -13,6 +13,11 @@ globalThis.getComputedStyle = dom.window.getComputedStyle.bind(dom.window);
 globalThis.localStorage = dom.window.localStorage;
 globalThis.HTMLCanvasElement = dom.window.HTMLCanvasElement;
 
+/* Pre-seed a logged-in profile so boot starts the app directly */
+dom.window.localStorage.setItem('momentum.profiles.v1', JSON.stringify([{ id: 'prof-test', name: 'Tester', icon: '🧪', salt: null, passHash: null, createdAt: '2026-01-01T00:00:00.000Z' }]));
+dom.window.localStorage.setItem('momentum.session.v1', JSON.stringify({ profileId: 'prof-test' }));
+
+
 /* jsdom has no canvas — stub a 2d context so charts render harmlessly */
 const noop = () => {};
 dom.window.HTMLCanvasElement.prototype.getContext = function () {
@@ -27,7 +32,9 @@ dom.window.Element.prototype.scrollTo = noop;
 dom.window.scrollTo = noop;
 
 await import('../js/utils.js');
+await import('../js/auth.js');
 globalThis.Utils = dom.window.Utils;
+globalThis.Auth = dom.window.Auth;
 globalThis.H = dom.window.H;
 await import('../js/storage.js');
 await import('../js/store.js');
@@ -69,8 +76,8 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(7);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.3.6-key-dates');
-    expect(Store.get().settings.lastVersion).toBe('2.3.6-key-dates');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.0-login');
+    expect(Store.get().settings.lastVersion).toBe('2.4.0-login');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(12);
     const navViews = [...document.querySelectorAll('.nav-item')].map(b => b.dataset.view);
@@ -87,7 +94,7 @@ describe('app boot', () => {
     expect(document.getElementById('saveStatus').textContent).toMatch(/Saved \d/);
     Store.updateSettings({ userName: 'SaveProbe' });
     expect(document.getElementById('saveStatus').textContent).toMatch(/Saved \d/);
-    expect(JSON.parse(localStorage.getItem('momentum.data.v1')).settings.userName).toBe('SaveProbe');
+    expect(JSON.parse(localStorage.getItem('momentum.data.v1.prof-test')).settings.userName).toBe('SaveProbe');
     Store.updateSettings({ userName: '' });
   });
 
@@ -125,8 +132,8 @@ describe('app boot', () => {
   });
 
   it('persists to localStorage automatically', () => {
-    expect(dom.window.localStorage.getItem('momentum.data.v1')).toBeTruthy();
-    expect(JSON.parse(dom.window.localStorage.getItem('momentum.data.v1')).tasks.length).toBe(Store.get().tasks.length);
+    expect(dom.window.localStorage.getItem('momentum.data.v1.prof-test')).toBeTruthy();
+    expect(JSON.parse(dom.window.localStorage.getItem('momentum.data.v1.prof-test')).tasks.length).toBe(Store.get().tasks.length);
   });
 });
 
@@ -214,7 +221,7 @@ describe('theme & interactions', () => {
   it('toggles dark theme and persists it', () => {
     App.setTheme('dark');
     expect(document.documentElement.dataset.theme).toBe('dark');
-    expect(JSON.parse(dom.window.localStorage.getItem('momentum.data.v1')).settings.theme).toBe('dark');
+    expect(JSON.parse(dom.window.localStorage.getItem('momentum.data.v1.prof-test')).settings.theme).toBe('dark');
     App.setTheme('light');
   });
 
@@ -224,7 +231,7 @@ describe('theme & interactions', () => {
     const expected = (h >= 19 || h < 7) ? 'dark' : 'light';
     expect(App.effectiveTheme()).toBe(expected);
     expect(document.documentElement.dataset.theme).toBe(expected);
-    expect(JSON.parse(dom.window.localStorage.getItem('momentum.data.v1')).settings.theme).toBe('auto');
+    expect(JSON.parse(dom.window.localStorage.getItem('momentum.data.v1.prof-test')).settings.theme).toBe('auto');
     expect(document.getElementById('themeToggle').textContent).toContain('Auto');
     App.setTheme('light');
     expect(App.effectiveTheme()).toBe('light');

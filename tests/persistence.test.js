@@ -13,6 +13,7 @@ globalThis.HTMLElement = dom.window.HTMLElement;
 globalThis.getComputedStyle = dom.window.getComputedStyle.bind(dom.window);
 globalThis.HTMLCanvasElement = dom.window.HTMLCanvasElement;
 
+
 const noop = () => {};
 dom.window.HTMLCanvasElement.prototype.getContext = function () {
   const gradient = { addColorStop: noop };
@@ -25,21 +26,29 @@ dom.window.HTMLCanvasElement.prototype.getContext = function () {
 dom.window.Element.prototype.scrollTo = noop;
 dom.window.scrollTo = noop;
 
-/* Simulate a browser that blocks script storage (private mode / cookies blocked) */
+/* Simulate a browser that blocks WRITES to script storage (Safari private mode:
+   previously saved data can still be read, but nothing new can be written) */
 const blockedCalls = [];
+const backingStore = new Map();
 const blockedStorage = {
-  getItem() { return null; },
+  getItem(k) { return backingStore.has(k) ? backingStore.get(k) : null; },
   setItem(k) { blockedCalls.push(k); throw new Error('SecurityError: storage is blocked'); },
-  removeItem() {},
-  key() { return null; },
-  clear() {},
-  get length() { return 0; }
+  removeItem(k) { backingStore.delete(k); },
+  key(i) { return Array.from(backingStore.keys())[i] ?? null; },
+  clear() { backingStore.clear(); },
+  get length() { return backingStore.size; }
 };
 Object.defineProperty(dom.window, 'localStorage', { value: blockedStorage, configurable: true });
 globalThis.localStorage = blockedStorage;
 
+/* A profile was logged in before storage got blocked */
+backingStore.set('momentum.profiles.v1', JSON.stringify([{ id: 'prof-test', name: 'Tester', icon: '🧪', salt: null, passHash: null, createdAt: '2026-01-01T00:00:00.000Z' }]));
+backingStore.set('momentum.session.v1', JSON.stringify({ profileId: 'prof-test' }));
+
 await import('../js/utils.js');
+await import('../js/auth.js');
 globalThis.Utils = dom.window.Utils;
+globalThis.Auth = dom.window.Auth;
 globalThis.H = dom.window.H;
 await import('../js/storage.js');
 await import('../js/store.js');

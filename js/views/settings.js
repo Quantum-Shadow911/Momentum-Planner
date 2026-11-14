@@ -5,7 +5,7 @@
   function renderStorageMeter(el) {
     if (!el) return;
     let bytes = 0;
-    try { bytes = (localStorage.getItem('momentum.data.v1') || '').length * 2; } catch (e) { bytes = 0; }
+    try { bytes = (localStorage.getItem(Storage.key()) || '').length * 2; } catch (e) { bytes = 0; }
     const state = Store.get();
     const atts = state.tasks.reduce((n, t) => n + ((t.attachments || []).length), 0);
     const quota = 5 * 1024 * 1024;
@@ -32,9 +32,40 @@
       <div class="muted small">${atts} attachment${atts === 1 ? '' : 's'} stored${warn ? ' — <strong style="color:var(--red)">storage is nearly full; export a backup and remove large attachments.</strong>' : ''}</div>`;
   }
 
+  function openChangePassword() {
+    const prof = Auth.sessionProfile();
+    if (!prof) return;
+    const hasPw = !!prof.passHash;
+    UI.openModal({
+      title: hasPw ? 'Change password' : 'Add a password',
+      body: `
+        ${hasPw ? '<div class="field"><label>Current password</label><input class="input" type="password" id="cpCur" autofocus></div>' : ''}
+        <div class="field"><label>New password (leave empty for none)</label><input class="input" type="password" id="cpNew" ${hasPw ? '' : 'autofocus'}></div>
+        <div class="field"><label>Repeat new password</label><input class="input" type="password" id="cpNew2"></div>
+        <div class="form-error" id="cpErr"></div>`,
+      buttons: [
+        { label: 'Cancel', class: 'btn-ghost', onClick: () => UI.closeModal() },
+        {
+          label: 'Save password', class: 'btn-primary',
+          onClick: () => {
+            const err = document.getElementById('cpErr');
+            const nw = document.getElementById('cpNew').value;
+            if (nw !== document.getElementById('cpNew2').value) { err.textContent = 'The two new passwords don\u2019t match.'; return false; }
+            const res = Auth.setPassword(prof.id, hasPw ? document.getElementById('cpCur').value : '', nw);
+            if (res.error) { err.textContent = res.error; return false; }
+            UI.toast('success', 'Password saved', nw ? 'You\u2019ll need it next time you unlock.' : 'Password removed.');
+            UI.closeModal();
+            if (Views.settings.render) Views.settings.render(document.getElementById('viewHost'));
+          }
+        }
+      ]
+    });
+  }
+
   function render(host) {
     const state = Store.get();
     const s = state.settings;
+    const prof = Auth.sessionProfile();
     const notifState = global.Reminders.notificationState();
 
     host.innerHTML = `
@@ -47,6 +78,10 @@
           <div class="card-title"><span>👤 Profile & appearance</span></div>
           <div class="field"><label>Your name (used in the dashboard greeting)</label>
             <input class="input" id="setName" maxlength="60" value="${H(s.userName)}" placeholder="e.g. Alex"></div>
+          <div class="settings-row">
+            <div><div class="s-label">Signed in as</div><div class="s-desc">${prof ? H(prof.icon + ' ' + prof.name) : 'No profile'}${prof && prof.passHash ? ' · password protected' : ' · no password'}</div></div>
+            <button class="btn" id="changePw">🔑 ${prof && prof.passHash ? 'Change password' : 'Add password'}</button>
+          </div>
           <div class="settings-row">
             <div><div class="s-label">Version</div><div class="s-desc">Momentum v${H(App.version)} — school-first edition with classes, study sessions, workload balancing, exams, templates, timer, attachments and breaks.</div></div>
             <span class="badge badge-done">Up to date</span>
@@ -220,6 +255,7 @@
     /* snapshots */
     const backupList = host.querySelector('#backupList');
     renderStorageMeter(host.querySelector('#storageMeter'));
+    host.querySelector('#changePw').addEventListener('click', openChangePassword);
     const backups = Storage.listBackups();
     if (!backups.length) {
       backupList.innerHTML = `<div class="muted small">No snapshots yet — they are created automatically as you use the app.</div>`;

@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.3.6-key-dates';
+  const APP_VERSION = '2.4.0-login';
 
   const NAV = [
     { section: 'Overview' },
@@ -252,8 +252,21 @@
     });
   }
 
-  /* ---------- Boot ---------- */
+  /* ---------- Boot: lock screen first, then the app ---------- */
   function boot() {
+    const sp = Auth.sessionProfile();
+    if (sp) startApp(sp.id);
+    else showLogin();
+  }
+
+  function startApp(profileId) {
+    const profile = profileId ? Auth.profiles().find(p => p.id === profileId) : Auth.sessionProfile();
+    if (!profile) { showLogin(); return; }
+    Storage.setProfile(profile.id);
+    const appEl = document.getElementById('app');
+    if (appEl) appEl.style.display = '';
+    const lr = document.getElementById('loginRoot');
+    if (lr) lr.remove();
     Store.init();
     applyTheme();
 
@@ -281,6 +294,13 @@
     showStorageBanners();
     Store.subscribe(rerender);
     Store.subscribe(updateSaveStatus);
+    renderProfileChip(profile);
+    const lockBtn = document.getElementById('lockBtn');
+    if (lockBtn) {
+      lockBtn.style.display = '';
+      lockBtn.addEventListener('click', () => { Auth.logout(); window.location.reload(); });
+    }
+    if (!Store.get().settings.userName) Store.updateSettings({ userName: profile.name });
     setInterval(applyTheme, 10 * 60 * 1000);
     seedIfEmpty();
     Reminders.start();
@@ -384,7 +404,115 @@
     updateSaveStatus();
   }
 
-  const App = { boot, go, setTheme, applyTheme, effectiveTheme, version: APP_VERSION, openTask: id => UI.openTaskViewer(id), loadSampleData, openSearch, storageWarning: () => storageProbe };
+  const AVATAR_CHOICES = ['🙂', '🧪', '🎻', '➗', '📖', '✏️', '🌍', '🏃', '⭐', '🚀', '🐱', '🎨'];
+
+  function renderProfileChip(profile) {
+    const chip = document.getElementById('profileChip');
+    if (!chip || !profile) return;
+    chip.style.display = '';
+    chip.innerHTML = `<span class="profile-avatar">${H(profile.icon)}</span><span class="profile-name">${H(profile.name)}</span>`;
+  }
+
+  function showLogin() {
+    const appEl = document.getElementById('app');
+    if (appEl) appEl.style.display = 'none';
+    let root = document.getElementById('loginRoot');
+    if (!root) { root = document.createElement('div'); root.id = 'loginRoot'; document.body.appendChild(root); }
+    const list = Auth.profiles();
+    const legacy = Auth.hasLegacy();
+    root.innerHTML = `
+      <div class="login-wrap">
+        <div class="login-card">
+          <div class="login-brand"><span class="brand-mark">⚡</span><span class="brand-name">Momentum</span></div>
+          <div class="login-sub">Who's planning?</div>
+          <div class="login-profiles" id="loginProfiles"></div>
+          <div class="login-note">Each person gets their own private planner, saved only in this browser. This lock screen keeps profiles separate — it's a lock, not bank-level security.${legacy ? '<br><strong>Your existing planner data will be moved into the first profile you create.</strong>' : ''}</div>
+          <div id="loginForm"></div>
+        </div>
+      </div>`;
+    if (!Storage.probe().ok) {
+      const warn = document.createElement('div');
+      warn.className = 'form-error';
+      warn.style.marginBottom = '12px';
+      warn.textContent = '\u26A0\uFE0F Your browser is blocking saving \u2014 new profiles won\u2019t be kept. Don\u2019t use a Private/Incognito window, and allow cookies & site data for this site.';
+      root.querySelector('.login-card').insertBefore(warn, root.querySelector('.login-note'));
+    }
+    const grid = root.querySelector('#loginProfiles');
+
+    function form(html) {
+      root.querySelector('#loginForm').innerHTML = html;
+      const cancel = root.querySelector('#loginCancel');
+      if (cancel) cancel.addEventListener('click', () => showLogin());
+    }
+
+    function finishLogin(id) {
+      root.remove();
+      startApp(id);
+    }
+
+    function askPassword(p) {
+      if (!p.passHash) { finishLogin(p.id); return; }
+      form(`
+        <div class="field"><label>Password for ${H(p.name)}</label><input class="input" type="password" id="loginPw"></div>
+        <div class="form-error" id="loginErr"></div>
+        <div class="row">
+          <button class="btn btn-primary" id="loginGo">Unlock</button>
+          <button class="btn btn-ghost" id="loginCancel">Back</button>
+        </div>`);
+      const tryPw = () => {
+        if (Auth.login(p.id, root.querySelector('#loginPw').value)) finishLogin(p.id);
+        else root.querySelector('#loginErr').textContent = 'Wrong password — try again.';
+      };
+      root.querySelector('#loginGo').addEventListener('click', tryPw);
+      root.querySelector('#loginPw').addEventListener('keydown', e => { if (e.key === 'Enter') tryPw(); });
+      root.querySelector('#loginPw').focus();
+    }
+
+    function addForm() {
+      form(`
+        <div class="field"><label>Your name *</label><input class="input" id="npName" maxlength="40" placeholder="e.g. Advait"></div>
+        <div class="field"><label>Avatar</label><select class="select" id="npIcon">${AVATAR_CHOICES.map(i => `<option ${i === '🙂' ? 'selected' : ''}>${i}</option>`).join('')}</select></div>
+        <div class="field-row">
+          <div class="field"><label>Password (optional)</label><input class="input" type="password" id="npPw" placeholder="At least 4 characters"></div>
+          <div class="field"><label>Repeat password</label><input class="input" type="password" id="npPw2"></div>
+        </div>
+        <div class="form-error" id="npErr"></div>
+        <div class="row">
+          <button class="btn btn-primary" id="npCreate">Create profile</button>
+          ${list.length ? '<button class="btn btn-ghost" id="loginCancel">Back</button>' : ''}
+        </div>`);
+      root.querySelector('#npName').focus();
+      root.querySelector('#npCreate').addEventListener('click', () => {
+        const errEl = root.querySelector('#npErr');
+        const name = root.querySelector('#npName').value;
+        const pw = root.querySelector('#npPw').value;
+        const pw2 = root.querySelector('#npPw2').value;
+        if (pw !== pw2) { errEl.textContent = 'The two passwords don\u2019t match.'; return; }
+        const res = Auth.createProfile(name, root.querySelector('#npIcon').value, pw);
+        if (res.error) { errEl.textContent = res.error; return; }
+        const isFirst = list.length === 0;
+        if (isFirst && legacy) Auth.migrateLegacy(res.profile.id);
+        Auth.login(res.profile.id, pw);
+        finishLogin(res.profile.id);
+      });
+      root.querySelector('#npName').addEventListener('keydown', e => { if (e.key === 'Enter') root.querySelector('#npCreate').click(); });
+    }
+
+    list.forEach(p => {
+      const card = document.createElement('button');
+      card.className = 'login-profile';
+      card.innerHTML = `<span class="login-avatar">${H(p.icon)}</span><span class="login-name">${H(p.name)}</span><span class="login-lock">${p.passHash ? '🔒' : ''}</span>`;
+      card.addEventListener('click', () => askPassword(p));
+      grid.appendChild(card);
+    });
+    const add = document.createElement('button');
+    add.className = 'login-profile login-profile-add';
+    add.innerHTML = `<span class="login-avatar">＋</span><span class="login-name">Add person</span>`;
+    add.addEventListener('click', addForm);
+    grid.appendChild(add);
+  }
+
+  const App = { boot, startApp, go, setTheme, applyTheme, effectiveTheme, version: APP_VERSION, openTask: id => UI.openTaskViewer(id), loadSampleData, openSearch, storageWarning: () => storageProbe };
 
   global.App = App;
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

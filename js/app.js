@@ -4,6 +4,8 @@
 
   const H = s => Utils.escapeHtml(s);
 
+  const APP_VERSION = '2.0.0-school-first';
+
   const NAV = [
     { section: 'Overview' },
     { id: 'dashboard', icon: '🏠', label: 'Dashboard' },
@@ -295,6 +297,8 @@
       }
     });
 
+    const vEl = document.getElementById('appVersion');
+    if (vEl) vEl.textContent = 'Momentum v' + APP_VERSION;
     Store.subscribe(rerender);
     seedIfEmpty();
     Reminders.start();
@@ -341,7 +345,7 @@
     root.querySelector('[data-tx]').addEventListener('click', () => Timer.cancel());
   }
 
-  const App = { boot, go, setTheme, openTask: id => UI.openTaskViewer(id), loadSampleData, openSearch };
+  const App = { boot, go, setTheme, version: APP_VERSION, openTask: id => UI.openTaskViewer(id), loadSampleData, openSearch };
 
   global.App = App;
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

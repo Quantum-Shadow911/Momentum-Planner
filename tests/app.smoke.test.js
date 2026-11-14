@@ -68,8 +68,8 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(7);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.3.1-school-schedule');
-    expect(Store.get().settings.lastVersion).toBe('2.3.1-school-schedule');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.3.2-class-pages');
+    expect(Store.get().settings.lastVersion).toBe('2.3.2-class-pages');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(12);
     expect(document.getElementById('viewHost').innerHTML).toContain('Recommended next task');
@@ -88,6 +88,26 @@ describe('app boot', () => {
     expect(document.getElementById('dashTests')).toBeTruthy();
     expect(document.getElementById('dashUpcoming')).toBeTruthy();
     expect(document.querySelectorAll('#miniCal .mini-cell').length).toBe(42);
+  });
+
+  it('clicking a period in the schedule opens a dedicated class page', () => {
+    Store.saveTask({ title: 'Science homework 1', classId: 'cls-sci', assignmentType: 'homework', dueDate: Utils.addDays(Utils.todayStr(), 2), estimateMin: 30 });
+    Store.saveTask({ title: 'Science quiz 2', classId: 'cls-sci', assignmentType: 'quiz', dueDate: Utils.addDays(Utils.todayStr(), 4), estimateMin: 45 });
+    document.querySelector('#dashPeriods .period-row').click();
+    expect(document.getElementById('topbarTitle').textContent).toBe('My Classes');
+    const host = document.getElementById('viewHost');
+    expect(host.textContent).toContain('Science 6');
+    expect(host.textContent).toContain('Mrs. Khichadia');
+    expect(host.textContent).toContain('Room C 207');
+    expect(host.textContent).toContain('Assignments & homework (1)');
+    expect(host.textContent).toContain('Tests & quizzes (1)');
+    expect(host.textContent).toContain('Science homework 1');
+    expect(host.textContent).toContain('Science quiz 2');
+    expect(document.getElementById('cpBack')).toBeTruthy();
+    document.getElementById('cpBack').click();
+    expect(document.getElementById('viewHost').textContent).toContain('My Classes');
+    Store.deleteTask(Store.get().tasks.find(t => t.title === 'Science homework 1').id);
+    Store.deleteTask(Store.get().tasks.find(t => t.title === 'Science quiz 2').id);
   });
 
   it('persists to localStorage automatically', () => {

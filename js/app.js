@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.3.1-school-schedule';
+  const APP_VERSION = '2.3.2-class-pages';
 
   const NAV = [
     { section: 'Overview' },

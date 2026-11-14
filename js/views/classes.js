@@ -13,9 +13,13 @@
         <button class="btn btn-primary" id="newClass">＋ New class</button>
       </div>
       <div class="grid grid-3" id="classGrid"></div>
-      <div id="classWorkspace" style="margin-top:20px"></div>
     `;
     host.querySelector('#newClass').addEventListener('click', () => openClassEditor());
+
+    if (selectedClassId && Store.getClass(selectedClassId)) {
+      renderClassPage(host, Store.getClass(selectedClassId));
+      return;
+    }
 
     const grid = host.querySelector('#classGrid');
     if (!state.classes.length) {
@@ -80,58 +84,126 @@
       grid.appendChild(card);
     });
 
-    renderWorkspace(host);
   }
 
-  function renderWorkspace(host) {
-    const ws = host.querySelector('#classWorkspace');
+  function renderClassPage(host, c) {
     const state = Store.get();
-    const c = selectedClassId ? Store.getClass(selectedClassId) : null;
-    if (!c) { ws.innerHTML = ''; return; }
-
     const tasks = state.tasks.filter(t => t.classId === c.id);
     const open = tasks.filter(t => t.status !== 'completed').sort(Priority.byDue);
     const tests = open.filter(t => Priority.isAssessment(t));
     const work = open.filter(t => !Priority.isAssessment(t));
-    const done = tasks.filter(t => t.status === 'completed');
+    const done = tasks.filter(t => t.status === 'completed')
+      .sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''));
+    const pct = Store.classProgress(c);
+    const loadLeft = open.reduce((s2, t) => s2 + Math.max(0, (t.estimateMin || 0) - (t.sessions || []).reduce((x, y) => x + y.durationMin, 0)), 0);
+    const today = Utils.todayStr();
+    const sessions = [];
+    state.tasks.filter(t => t.classId === c.id && t.status !== 'completed').forEach(t => {
+      (t.sessions || []).forEach(s2 => { if (!s2.done && s2.date && s2.date >= today) sessions.push({ session: s2, task: t }); });
+    });
+    sessions.sort((a, b) => (a.session.date + (a.session.time || '')).localeCompare(b.session.date + (b.session.time || '')));
 
-    ws.innerHTML = `
-      <div class="card" style="border-color:${H(c.color)}">
-        <div class="card-title">
-          <span>${H(c.icon)} ${H(c.name)} — workspace</span>
-          <button class="link-btn" id="wsClose">Close ✕</button>
-        </div>
-        <div class="grid grid-2">
-          <div>
-            <div class="spread" style="margin-bottom:8px"><h4 style="font-size:13px">📚 Assignments & work (${work.length})</h4>
-              <button class="btn btn-sm btn-primary" id="wsAddWork">＋ Add</button></div>
-            <div class="task-list" id="wsWork"></div>
-          </div>
-          <div>
-            <div class="spread" style="margin-bottom:8px"><h4 style="font-size:13px">📄 Tests & quizzes (${tests.length})</h4>
-              <button class="btn btn-sm btn-primary" id="wsAddTest">＋ Add</button></div>
-            <div class="task-list" id="wsTests"></div>
-            ${c.slots.length ? `<div class="detail-section"><h4>Class schedule</h4>
-              ${c.slots.map(s => `<div class="muted small" style="padding:2px 0">${Utils.DOW[s.day]}: ${Utils.fmtTime(s.start)}–${Utils.fmtTime(s.end)}${c.room ? ' · ' + H(c.room) : ''}</div>`).join('')}
-            </div>` : ''}
-            ${done.length ? `<div class="detail-section"><h4>✅ Completed (${done.length})</h4>
-              <div class="task-list" id="wsDone"></div></div>` : ''}
-          </div>
-        </div>
-      </div>`;
+    const periodBits = [
+      c.period ? 'Period ' + c.period : '',
+      c.teacher ? H(c.teacher) : '',
+      c.room ? 'Room ' + H(c.room) : ''
+    ].filter(Boolean).join('  \u00b7  ');
 
-    const workHost = ws.querySelector('#wsWork');
-    const testHost = ws.querySelector('#wsTests');
-    if (!work.length) workHost.innerHTML = `<div class="empty"><span class="empty-icon">🎉</span>No open assignments.</div>`;
+    host.innerHTML = `
+      <div class="page-head">
+        <div>
+          <h2>${H(c.icon)} ${H(c.name)}</h2>
+          <div class="sub">${periodBits}${c.slots.length ? '  \u00b7  ' + c.slots.map(sl => `${Utils.DOW_SHORT[sl.day]} ${Utils.fmtTime(sl.start)}\u2013${Utils.fmtTime(sl.end)}`).join(', ') : ''}</div>
+        </div>
+        <div class="row">
+          <button class="btn" id="cpBack">← All classes</button>
+          <button class="btn" id="cpEdit">✏️ Edit class</button>
+          <button class="btn btn-primary" id="cpAddWork">＋ Assignment</button>
+          <button class="btn" id="cpAddTest">＋ Test / quiz</button>
+        </div>
+      </div>
+
+      <div class="grid grid-4" style="margin-bottom:16px">
+        <div class="stat"><span class="stat-label">Open assignments</span><span class="stat-value">${work.length}</span><span class="stat-sub">${loadLeft ? '~' + Utils.fmtDuration(loadLeft) + ' of work left' : 'all caught up'}</span></div>
+        <div class="stat"><span class="stat-label">Tests & quizzes</span><span class="stat-value ${tests.length ? 'tone-red' : 'tone-green'}">${tests.length}</span><span class="stat-sub">upcoming</span></div>
+        <div class="stat"><span class="stat-label">Completed</span><span class="stat-value tone-green">${done.length}</span><span class="stat-sub">of ${tasks.length} total</span></div>
+        <div class="stat"><span class="stat-label">Class progress</span><span class="stat-value tone-accent">${pct}%</span><span class="stat-sub"><span class="progress ${pct === 100 ? 'green' : ''}" style="margin-top:6px"><div style="width:${pct}%"></div></span></span></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title"><span>📚 Assignments & homework (${work.length})</span>
+          <button class="btn btn-sm btn-primary" id="cpAddWork2">＋ Add</button></div>
+        <div class="task-list" id="cpWork"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title"><span>📄 Tests & quizzes (${tests.length})</span>
+          <button class="btn btn-sm btn-primary" id="cpAddTest2">＋ Add</button></div>
+        <div class="task-list" id="cpTests"></div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-title"><span>🧠 Planned study sessions (${sessions.length})</span></div>
+          <div class="task-list" id="cpSessions"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>✅ Completed (${done.length})</span></div>
+          <div class="task-list" id="cpDone"></div>
+        </div>
+      </div>
+    `;
+
+    const workHost = host.querySelector('#cpWork');
+    if (!work.length) workHost.innerHTML = `<div class="empty"><span class="empty-icon">🎉</span>No open assignments for this class.</div>`;
     work.forEach(t => workHost.appendChild(UI.taskItem(t)));
-    if (!tests.length) testHost.innerHTML = `<div class="muted small" style="padding:4px">No tests scheduled.</div>`;
-    tests.forEach(t => testHost.appendChild(UI.taskItem(t)));
-    const doneHost = ws.querySelector('#wsDone');
-    if (doneHost) done.slice(0, 5).forEach(t => doneHost.appendChild(UI.taskItem(t)));
 
-    ws.querySelector('#wsClose').addEventListener('click', () => { selectedClassId = null; render(host); });
-    ws.querySelector('#wsAddWork').addEventListener('click', () => UI.openTaskEditor(null, { classId: c.id, assignmentType: 'homework' }));
-    ws.querySelector('#wsAddTest').addEventListener('click', () => UI.openTaskEditor(null, { classId: c.id, assignmentType: 'test' }));
+    const testHost = host.querySelector('#cpTests');
+    if (!tests.length) testHost.innerHTML = `<div class="empty"><span class="empty-icon">📄</span>No tests or quizzes scheduled. 🎉</div>`;
+    tests.forEach(t => {
+      const n = Utils.daysUntil(t.dueDate);
+      const el = UI.taskItem(t);
+      if (t.dueDate) {
+        const meta = el.querySelector('.task-meta');
+        const badge = document.createElement('span');
+        badge.className = 'badge ' + (n < 0 ? 'badge-overdue' : n <= 2 ? 'badge-today' : 'badge-cat');
+        badge.textContent = n < 0 ? `${-n}d overdue` : n === 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`;
+        meta.appendChild(badge);
+      }
+      testHost.appendChild(el);
+    });
+
+    const sesHost = host.querySelector('#cpSessions');
+    if (!sessions.length) sesHost.innerHTML = `<div class="empty"><span class="empty-icon">🧠</span>No study sessions planned. Open an assignment and “Plan a session”.</div>`;
+    sessions.slice(0, 8).forEach(({ session: s2, task: t }) => {
+      const row = document.createElement('div');
+      row.className = 'task-item';
+      row.innerHTML = `
+        <div class="task-main">
+          <div class="task-title">${H(t.title)}</div>
+          <div class="task-meta">
+            <span class="meta-txt">📅 ${H(Utils.fmtDateSmart(s2.date))}</span>
+            ${s2.time ? `<span class="meta-txt">🕐 ${H(Utils.fmtTime(s2.time))}</span>` : ''}
+            <span class="meta-txt">⏱ ${H(Utils.fmtDuration(s2.durationMin))}</span>
+            ${s2.objective ? `<span class="meta-txt">🎯 ${H(s2.objective)}</span>` : ''}
+          </div>
+        </div>`;
+      row.querySelector('.task-main').addEventListener('click', () => UI.openTaskViewer(t.id));
+      sesHost.appendChild(row);
+    });
+
+    const doneHost = host.querySelector('#cpDone');
+    if (!done.length) doneHost.innerHTML = `<div class="empty"><span class="empty-icon">✅</span>Nothing completed yet for this class.</div>`;
+    done.slice(0, 8).forEach(t => doneHost.appendChild(UI.taskItem(t)));
+
+    host.querySelector('#cpBack').addEventListener('click', () => { selectedClassId = null; render(host); });
+    host.querySelector('#cpEdit').addEventListener('click', () => openClassEditor(c.id));
+    const addWork = () => UI.openTaskEditor(null, { classId: c.id, assignmentType: 'homework' });
+    const addTest = () => UI.openTaskEditor(null, { classId: c.id, assignmentType: 'test' });
+    host.querySelector('#cpAddWork').addEventListener('click', addWork);
+    host.querySelector('#cpAddWork2').addEventListener('click', addWork);
+    host.querySelector('#cpAddTest').addEventListener('click', addTest);
+    host.querySelector('#cpAddTest2').addEventListener('click', addTest);
   }
 
   function openClassEditor(classId) {

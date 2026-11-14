@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [Momentum-v2.0.0-download]
+    branches: [vibe/productivity-planner-3356e7]
   workflow_dispatch:
 
 permissions:
@@ -23,8 +23,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: Momentum-v2.0.0-download
 
       - name: Enable and configure Pages
         uses: actions/configure-pages@v5

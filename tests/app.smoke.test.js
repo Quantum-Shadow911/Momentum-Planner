@@ -71,8 +71,8 @@ describe('app boot', () => {
   it('boots with seeded sample data and renders the dashboard', () => {
     expect(Store.get().tasks.length).toBeGreaterThan(5);
     expect(Store.get().categories.length).toBe(9);
-    expect(Store.get().classes.length).toBe(4);
-    expect(Store.get().events.length).toBe(5);
+    expect(Store.get().classes.length).toBe(3);
+    expect(Store.get().events.length).toBe(2);
     expect(Store.get().breaks.length).toBe(1);
     expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.0.1-school-first');
     expect(Store.get().settings.lastVersion).toBe('2.0.1-school-first');
@@ -157,7 +157,11 @@ describe('theme & interactions', () => {
     UI.closeModal();
   });
 
-  it('workload balance modal opens with suggestions or a clean bill', () => {
+  it('workload balance modal opens with suggestions for an overloaded day', () => {
+    const today = Utils.todayStr();
+    Store.saveTask({ title: 'Overloaded crunch', dueDate: Utils.addDays(today, 6), estimateMin: 270, sessions: [
+      { date: today, durationMin: 90 }, { date: today, durationMin: 90 }, { date: today, durationMin: 90 }
+    ] });
     App.go('weekly');
     document.getElementById('wBalance').click();
     expect(document.getElementById('modalRoot').children.length).toBe(1);
@@ -196,7 +200,7 @@ describe('theme & interactions', () => {
 
   it('timetable renders class blocks for the seeded schedule', () => {
     App.go('timetable');
-    expect(document.querySelectorAll('.tt-block').length).toBeGreaterThanOrEqual(9);
+    expect(document.querySelectorAll('.tt-block').length).toBeGreaterThanOrEqual(5);
   });
 
   it('dragging an assignment with sessions in the daily planner moves the session, not the deadline', () => {

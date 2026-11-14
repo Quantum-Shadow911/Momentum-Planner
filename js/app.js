@@ -221,13 +221,11 @@
 
     const classes = [
       { id: 'cls-math', name: 'Mathematics', teacher: 'Mr. Alvarez', room: 'B-204', color: '#3b82f6', icon: '➗',
-        slots: [{ day: 1, start: '08:30', end: '09:30' }, { day: 3, start: '08:30', end: '09:30' }, { day: 5, start: '08:30', end: '09:30' }] },
+        slots: [{ day: 1, start: '08:30', end: '09:30' }, { day: 3, start: '08:30', end: '09:30' }] },
       { id: 'cls-sci', name: 'Science', teacher: 'Dr. Chen', room: 'Lab 2', color: '#14b8a6', icon: '🧪',
-        slots: [{ day: 0, start: '10:00', end: '11:15' }, { day: 2, start: '10:00', end: '11:15' }] },
+        slots: [{ day: 2, start: '10:00', end: '11:15' }, { day: 4, start: '10:00', end: '11:15' }] },
       { id: 'cls-eng', name: 'English', teacher: 'Ms. Rivera', room: 'A-101', color: '#ec4899', icon: '📖',
-        slots: [{ day: 1, start: '13:00', end: '14:15' }, { day: 4, start: '13:00', end: '14:15' }] },
-      { id: 'cls-hist', name: 'History', teacher: 'Mr. Okafor', room: 'C-310', color: '#f59e0b', icon: '🏛️',
-        slots: [{ day: 0, start: '14:30', end: '15:30' }, { day: 3, start: '14:30', end: '15:30' }] }
+        slots: [{ day: 1, start: '13:00', end: '14:15' }] }
     ];
     classes.forEach(c => Store.saveClass(c));
 
@@ -247,31 +245,20 @@
     });
 
     const tasks = [
-      { title: 'Finish physics lab report', description: 'Sections: method, results, error analysis. Graphs must be hand-drawn scale.', dueDate: today, time: '16:00', estimateMin: 90, priority: 'high', categoryId: 'cat-school', classId: 'cls-sci', assignmentType: 'lab', submission: 'working', tags: ['lab', 'physics'], reminders: [30, 1440], subtasks: [{ title: 'Write method section', done: true }, { title: 'Error analysis', done: false }, { title: 'Draw graphs', done: false }], sessions: [{ date: today, time: '16:00', durationMin: 60, objective: 'Error analysis + graphs' }] },
-      { title: 'Math homework set 7', description: 'Chapter 7: integration by parts, problems 1–20.', dueDate: today, time: '19:00', estimateMin: 60, priority: 'medium', categoryId: 'cat-school', classId: 'cls-math', assignmentType: 'homework', tags: ['math'], reminders: [30], sessions: [{ date: today, time: '19:00', durationMin: 45, objective: 'Problems 1–20' }] },
-      { title: 'Return library books', dueDate: d(-1), priority: 'low', categoryId: 'cat-misc', notes: '3 books, small fine accruing.' },
-      { title: 'History essay outline', description: 'Thesis + 5 paragraph plan on the Industrial Revolution.', dueDate: d(1), time: '17:30', estimateMin: 45, priority: 'high', categoryId: 'cat-school', classId: 'cls-hist', assignmentType: 'essay', tags: ['essay', 'history'], sessions: [{ date: today, time: '17:30', durationMin: 45, objective: 'Thesis + section plan' }] },
-      { title: 'Chemistry midterm — unit 3', description: 'Covers stoichiometry, bonding, reactions. Redo practice exam B first.', dueDate: d(4), estimateMin: 120, priority: 'high', categoryId: 'cat-study', classId: 'cls-sci', assignmentType: 'test', tags: ['exam', 'chemistry'], reminders: [1440], subtasks: [{ title: 'Practice exam A', done: true }, { title: 'Practice exam B', done: false }], sessions: [{ date: d(2), time: '16:30', durationMin: 60, objective: 'Redo practice exam B' }, { date: d(3), time: '16:30', durationMin: 60, objective: 'Flashcards: formulas' }] },
-      { title: 'English reading — chapters 5–6', dueDate: d(2), estimateMin: 40, priority: 'medium', categoryId: 'cat-school', classId: 'cls-eng', assignmentType: 'reading', sessions: [{ date: d(1), time: '19:30', durationMin: 40, objective: 'Chapters 5–6 + notes' }] },
-      { title: 'Research paper: first draft', description: 'Full draft of all sections for the Biology paper.', dueDate: d(5), estimateMin: 180, priority: 'urgent', categoryId: 'cat-projects', classId: 'cls-sci', assignmentType: 'project', projectId: projId, submission: 'working', reminders: [1440], sessions: [{ date: d(1), time: '15:30', durationMin: 60, objective: 'Draft intro + method' }, { date: d(2), time: '15:30', durationMin: 60, objective: 'Draft results' }, { date: d(3), time: '15:30', durationMin: 60, objective: 'Draft discussion' }] },
-      { title: 'History quiz — Industrial Revolution', dueDate: d(7), estimateMin: 60, priority: 'medium', categoryId: 'cat-study', classId: 'cls-hist', assignmentType: 'quiz', sessions: [{ date: d(5), time: '17:00', durationMin: 30, objective: 'Review timeline' }] },
-      { title: 'Clean and organize desk', dueDate: d(4), estimateMin: 30, priority: 'low', categoryId: 'cat-household' },
-      { title: 'Practice guitar — new song', dueDate: d(2), time: '20:00', estimateMin: 40, priority: 'low', categoryId: 'cat-hobbies', recurrence: { type: 'daily', interval: 2 } },
-      { title: 'Call grandma', dueDate: d(6), priority: 'medium', categoryId: 'cat-personal', recurrence: { type: 'weekly', interval: 1 } },
-      { title: 'Buy groceries', description: 'Milk, eggs, spinach, rice, coffee.', dueDate: d(1), priority: 'medium', categoryId: 'cat-household' },
-      { title: 'Read chapter 4 — Economics', dueDate: d(-2), estimateMin: 60, priority: 'high', categoryId: 'cat-school', status: 'in-progress', tags: ['reading'] },
-      { title: 'Team project sync meeting', dueDate: d(1), time: '15:00', durationMin: 45, priority: 'medium', categoryId: 'cat-projects', links: [{ label: 'Meeting link', url: 'https://meet.example.com/team' }] },
+      { title: 'Math homework set 7', description: 'Chapter 7: problems 1–20.', dueDate: today, time: '19:00', estimateMin: 60, priority: 'medium', categoryId: 'cat-school', classId: 'cls-math', assignmentType: 'homework', tags: ['math'], reminders: [30], sessions: [{ date: today, time: '19:00', durationMin: 45, objective: 'Problems 1–20' }] },
+      { title: 'Finish science lab report', description: 'Sections: method, results, error analysis.', dueDate: d(2), time: '16:00', estimateMin: 90, priority: 'high', categoryId: 'cat-school', classId: 'cls-sci', assignmentType: 'lab', submission: 'working', tags: ['lab'], reminders: [30], subtasks: [{ title: 'Write method section', done: true }, { title: 'Error analysis', done: false }], sessions: [{ date: today, time: '16:00', durationMin: 60, objective: 'Error analysis + graphs' }] },
+      { title: 'English reading — chapters 5–6', dueDate: d(3), estimateMin: 40, priority: 'medium', categoryId: 'cat-school', classId: 'cls-eng', assignmentType: 'reading', sessions: [{ date: d(1), time: '19:30', durationMin: 40, objective: 'Chapters 5–6 + notes' }] },
+      { title: 'Chemistry midterm — unit 3', description: 'Covers stoichiometry, bonding, reactions.', dueDate: d(7), estimateMin: 120, priority: 'high', categoryId: 'cat-study', classId: 'cls-sci', assignmentType: 'test', tags: ['exam'], reminders: [1440], subtasks: [{ title: 'Practice exam A', done: true }, { title: 'Practice exam B', done: false }], sessions: [{ date: d(3), time: '16:30', durationMin: 60, objective: 'Redo practice exam B' }, { date: d(5), time: '16:30', durationMin: 60, objective: 'Flashcards: formulas' }] },
+      { title: 'Return library books', dueDate: d(-1), priority: 'low', categoryId: 'cat-misc' },
       { title: 'Water the plants', dueDate: today, time: '09:00', priority: 'low', categoryId: 'cat-household', recurrence: { type: 'weekly', interval: 1 } },
+      { title: 'Practice guitar — new song', dueDate: d(2), time: '20:00', estimateMin: 40, priority: 'low', categoryId: 'cat-hobbies', recurrence: { type: 'daily', interval: 2 } },
       { title: 'Sign up for science fair', priority: 'low', categoryId: 'cat-school', classId: 'cls-sci', notes: 'Ask Dr. Chen about the deadline.' }
     ];
     tasks.forEach(t => Store.saveTask(t));
 
     const events = [
       { id: 'evt-soccer', title: 'Soccer practice', icon: '⚽', date: d(1), time: '18:00', endTime: '19:30', location: 'Main field', categoryId: 'cat-extracurricular', notes: 'Bring shin guards and water bottle.' },
-      { id: 'evt-soccer2', title: 'Soccer practice', icon: '⚽', date: d(3), time: '18:00', endTime: '19:30', location: 'Main field', categoryId: 'cat-extracurricular' },
-      { id: 'evt-club', title: 'Debate club meeting', icon: '🤝', date: d(2), time: '16:00', endTime: '17:00', location: 'Room A-105', categoryId: 'cat-extracurricular', notes: 'Prepare a 2-minute argument on the weekly motion.' },
-      { id: 'evt-match', title: 'Soccer match vs. Riverside', icon: '🏆', date: d(5), time: '14:00', endTime: '16:00', location: 'Riverside HS', categoryId: 'cat-extracurricular', notes: 'Bus leaves 12:30 from the gym.' },
-      { id: 'evt-dentist', title: 'Dentist appointment', icon: '🏥', date: d(4), time: '10:30', endTime: '11:15', location: 'Dr. Patel', categoryId: 'cat-personal' }
+      { id: 'evt-dentist', title: 'Dentist appointment', icon: '🏥', date: d(3), time: '10:30', endTime: '11:15', location: 'Dr. Patel', categoryId: 'cat-personal' }
     ];
     events.forEach(e => Store.saveEvent(e));
 
@@ -283,30 +270,14 @@
 
     Store.saveGoal({
       name: 'Make the honor roll this semester', icon: '🎓', color: '#8b5cf6',
-      description: 'Keep every class at B+ or above and ace the finals.',
+      description: 'Keep every class at B+ or above.',
       targetDate: d(60),
       milestones: [
-        { id: Utils.uid('ms'), title: 'A in Physics midterm', done: true },
-        { id: Utils.uid('ms'), title: 'All homework turned in for 4 straight weeks', done: false },
-        { id: Utils.uid('ms'), title: 'Finish finals with no all-nighters', done: false }
-      ]
-    });
-    Store.saveGoal({
-      name: 'Run a 10K', icon: '🏃', color: '#10b981',
-      description: 'From couch to 10K by end of season.',
-      targetDate: d(90),
-      milestones: [
-        { id: Utils.uid('ms'), title: 'Run 5K without stopping', done: true },
-        { id: Utils.uid('ms'), title: 'Run 8K', done: false },
-        { id: Utils.uid('ms'), title: 'Complete a 10K race', done: false }
+        { id: Utils.uid('ms'), title: 'A in the chemistry midterm', done: false },
+        { id: Utils.uid('ms'), title: 'All homework turned in for 4 straight weeks', done: false }
       ]
     });
 
-    Store.saveNote({
-      title: 'Essay requirements — History', color: '#f59e0b', pinned: true,
-      body: '• 1500–2000 words\n• Minimum 5 sources, 2 primary\n• MLA citations\n• Due end of month — outline first!',
-      taskIds: Store.get().tasks.filter(t => t.title === 'History essay outline').map(t => t.id)
-    });
     Store.saveNote({
       title: 'Study techniques that work for me', color: '#10b981', classId: 'cls-sci',
       body: 'Pomodoro 25/5 works best after 4pm.\nFlashcards for chemistry formulas.\nTeach concepts out loud to check understanding.',

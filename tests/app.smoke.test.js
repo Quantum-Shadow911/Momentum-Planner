@@ -132,6 +132,22 @@ describe('theme & interactions', () => {
     App.setTheme('light');
   });
 
+  it('nav Inbox opens the undated inbox filter (regression: mapping ran after the view guard)', () => {
+    document.querySelector('[data-view="inbox"]').click();
+    expect(document.getElementById('topbarTitle').textContent).toBe('Assignments');
+    expect(document.querySelector('#fStatus').value).toBe('undated');
+    expect(document.getElementById('taskList')).toBeTruthy();
+  });
+
+  it('undated tasks appear in the Inbox and Other Responsibilities filters non-school tasks', () => {
+    Store.saveTask({ title: 'Captured idea', dueDate: null, startDate: null, time: null });
+    document.querySelector('[data-view="inbox"]').click();
+    expect(document.getElementById('taskList').textContent).toContain('Captured idea');
+    document.querySelector('[data-view="personal"]').click();
+    expect(document.querySelector('#fStatus').value).toBe('open');
+    expect(document.querySelector('#fCls').value).toBe('none');
+  });
+
   it('quick-add modal opens', () => {
     UI.quickAdd();
     expect(document.getElementById('modalRoot').children.length).toBe(1);

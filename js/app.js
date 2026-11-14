@@ -52,7 +52,6 @@
   }
 
   function go(view, opts) {
-    if (!Views[view]) view = 'dashboard';
     if (view === 'inbox') {
       view = 'tasks';
       if (Views.tasks.preset) Views.tasks.preset({ status: 'undated', cls: '', sub: '' });
@@ -61,6 +60,7 @@
       view = 'tasks';
       if (Views.tasks.preset) Views.tasks.preset({ status: 'open', cls: 'none', sub: '' });
     }
+    if (!Views[view]) view = 'dashboard';
     currentView = view;
     const host = document.getElementById('viewHost');
     Views[view].render(host);

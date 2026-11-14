@@ -11,7 +11,7 @@ npm start          # serves at http://localhost:4173 (zero-dep Node server)
 …or open `index.html` directly in a browser, or host the folder statically (works on GitHub Pages).
 
 ```bash
-npm test           # run the 117-test suite (Vitest + jsdom)
+npm test           # run the 119-test suite (Vitest + jsdom)
 npm run test:watch
 ```
 
@@ -28,6 +28,7 @@ npm run test:watch
 | **Attachments** | Attach worksheets and instruction files (up to 2 MB each, stored locally in your browser) to any task; download from the task viewer |
 | **School breaks** | Define holiday ranges in Settings; they are shaded in the calendar, flagged in the daily planner and skipped by workload balancing and smart rescheduling |
 | **Task management** | Create / edit / duplicate / delete / complete; description, start & due dates, scheduled time, duration, priority (Low→Urgent), status, category, tags, estimate vs. actual time, subtask checklists, recurrence (daily / weekdays / weekly / biweekly / monthly — every option respects its interval), reminders, reference links, dependencies, notes; search, 5 sort orders, combined filters (incl. class & type); completed tasks move to a collapsible history |
+| **Important Dates** | Dedicated sidebar page embedding the full month calendar plus upcoming deadlines, tests & quizzes, activities and school breaks in one place |
 | **Planning views** | Daily (hour-by-hour grid with timed sessions, drag to reschedule, 🏫 class-schedule chips with live “now” highlight, ⚖ Balance workload), Monthly calendar (overdue vs. deadline highlighting, events + break shading in cells, day dialog), Agenda (chronological groups incl. events, overdue & undated) — all synchronized through a single store |
 | **Smart scheduling** | ⚖ Balance workload: moves study sessions off overloaded days to the lightest feasible day (before the due date, skipping breaks) with an approve/reject dialog; ⚖ Smart reschedule: relocates overdue work and missed sessions to realistic new days; both never change anything without your approval |
 | **Activities & events** | Dedicated events view for extracurriculars: icon, time range, location, category, notes; upcoming 30 days grouped by date with collapsible history; events appear alongside tasks in the calendar but behave differently (no completion, no priority) |

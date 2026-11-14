@@ -42,6 +42,7 @@ await import('../js/views/classes.js');
 await import('../js/views/activities.js');
 await import('../js/views/exams.js');
 await import('../js/views/tasks.js');
+await import('../js/views/dates.js');
 await import('../js/views/daily.js');
 await import('../js/views/monthly.js');
 await import('../js/views/agenda.js');
@@ -68,10 +69,10 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(7);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.3.3-save-proof');
-    expect(Store.get().settings.lastVersion).toBe('2.3.3-save-proof');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.3.4-dates-page');
+    expect(Store.get().settings.lastVersion).toBe('2.3.4-dates-page');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
-    expect(document.querySelectorAll('.nav-item').length).toBe(12);
+    expect(document.querySelectorAll('.nav-item').length).toBe(13);
     expect(document.getElementById('viewHost').innerHTML).toContain('Recommended next task');
     expect(document.getElementById('viewHost').innerHTML).toContain('To-do list — today');
     expect(document.getElementById('viewHost').innerHTML).toContain('appointments');
@@ -127,13 +128,35 @@ describe('app boot', () => {
 });
 
 describe('all views render without errors', () => {
-  const viewIds = ['classes', 'activities', 'exams', 'daily', 'monthly', 'agenda', 'tasks', 'analytics', 'settings'];
+  const viewIds = ['classes', 'activities', 'exams', 'daily', 'dates', 'monthly', 'agenda', 'tasks', 'analytics', 'settings'];
   viewIds.forEach(id => {
     it(`renders ${id}`, () => {
       expect(() => App.go(id)).not.toThrow();
       expect(document.getElementById('viewHost').children.length).toBeGreaterThan(0);
       expect(document.getElementById('topbarTitle').textContent).toBe(Views[id].title);
     });
+  });
+});
+
+describe('important dates page', () => {
+  it('embeds the month calendar and lists deadlines, tests, events and breaks', () => {
+    const t = Store.saveTask({ title: 'Dates page homework', classId: 'cls-math', assignmentType: 'homework', dueDate: Utils.addDays(Utils.todayStr(), 3), estimateMin: 20 });
+    const q = Store.saveTask({ title: 'Dates page quiz', classId: 'cls-sci', assignmentType: 'quiz', dueDate: Utils.addDays(Utils.todayStr(), 5), estimateMin: 30 });
+    const ev = Store.saveEvent({ title: 'Dates page event', date: Utils.addDays(Utils.todayStr(), 2), time: '17:00' });
+    const br = Store.saveBreak({ name: 'Dates page break', start: Utils.addDays(Utils.todayStr(), 20), end: Utils.addDays(Utils.todayStr(), 24) });
+    App.go('dates');
+    expect(document.getElementById('topbarTitle').textContent).toBe('Important Dates');
+    expect(document.getElementById('datesCal')).toBeTruthy();
+    expect(document.querySelectorAll('#datesCal .cal-cell').length).toBe(42);
+    expect(document.getElementById('dtDeadlines').textContent).toContain('Dates page homework');
+    expect(document.getElementById('dtTests').textContent).toContain('Dates page quiz');
+    expect(document.getElementById('dtEvents').textContent).toContain('Dates page event');
+    expect(document.getElementById('dtBreaks').textContent).toContain('Dates page break');
+    Store.deleteTask(t.id);
+    Store.deleteTask(q.id);
+    Store.deleteEvent(ev.id);
+    Store.deleteBreak(br.id);
+    App.go('dashboard');
   });
 });
 

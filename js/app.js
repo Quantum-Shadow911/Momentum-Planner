@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.3.3-save-proof';
+  const APP_VERSION = '2.3.4-dates-page';
 
   const NAV = [
     { section: 'Overview' },
@@ -15,6 +15,7 @@
     { id: 'tasks', icon: '✅', label: 'Assignments' },
     { id: 'exams', icon: '📄', label: 'Exams & Quizzes' },
     { id: 'daily', icon: '📅', label: 'Daily Planner' },
+    { id: 'dates', icon: '📌', label: 'Important Dates' },
     { id: 'monthly', icon: '📆', label: 'Calendar' },
     { id: 'agenda', icon: '📋', label: 'Agenda' },
     { section: 'Activities' },

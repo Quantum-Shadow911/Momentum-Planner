@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.0.0-school-first';
+  const APP_VERSION = '2.0.1-school-first';
 
   const NAV = [
     { section: 'Overview' },
@@ -159,7 +159,45 @@
     }
     loadSampleData();
     state.settings.seeded = true;
+    state.settings.lastVersion = APP_VERSION;
     Store.persist();
+  }
+
+  /* Upgrade notice: when a returning user opens a newer version, offer the
+     school sample content so new features are visible with their old data. */
+  function maybeShowUpgrade() {
+    const s = Store.get().settings;
+    if (!s.seeded || s.lastVersion === APP_VERSION) return;
+    Store.updateSettings({ lastVersion: APP_VERSION });
+    const hasSchool = Store.get().classes.length > 0;
+    if (hasSchool) return;
+    UI.openModal({
+      title: '👋 Welcome to Momentum v' + APP_VERSION,
+      body: `
+        <p style="margin-top:0;color:var(--text-2)">Your saved data carried over — nothing was lost. This version turns Momentum into a <strong>school-first planner</strong>, and your older data doesn't include the new school content yet.</p>
+        <div class="detail-section">
+          <h4>New in this version</h4>
+          <ul style="margin:0;padding-left:18px;color:var(--text-2);line-height:1.7">
+            <li>📚 <strong>My Classes</strong> — subject workspaces with teachers & schedules</li>
+            <li>🧠 <strong>Study sessions</strong> — plan when you'll work, separate from deadlines</li>
+            <li>⚖ <strong>Balance workload</strong> — moves sessions off overloaded days (with your approval)</li>
+            <li>📄 <strong>Exams & Quizzes</strong>, 🗓️ <strong>Timetable</strong>, ⭐ <strong>Activities & Events</strong></li>
+            <li>📋 <strong>Assignment templates</strong>, ⏱ <strong>study timer</strong>, 📎 attachments, 🏖 school breaks</li>
+          </ul>
+        </div>
+        <p class="muted small" style="margin-bottom:0">You can always load samples later from Settings → Danger zone → Load sample data.</p>`,
+      buttons: [
+        { label: 'Keep my data', class: 'btn-ghost', onClick: () => UI.closeModal() },
+        {
+          label: '📚 Load school sample data', class: 'btn-primary',
+          onClick: () => {
+            App.loadSampleData();
+            UI.toast('success', 'School sample data loaded', 'Explore My Classes, the weekly ⚖ Balance workload button and Exams & Quizzes.');
+            UI.closeModal();
+          }
+        }
+      ]
+    });
   }
 
   function loadSampleData() {
@@ -306,6 +344,7 @@
     Timer.onTick(renderTimerWidget);
     renderTimerWidget();
     go('dashboard');
+    maybeShowUpgrade();
 
     window.addEventListener('resize', Utils.debounce(() => {
       if (currentView === 'analytics' && !UI.modalIsOpen()) Views.analytics.render(document.getElementById('viewHost'));

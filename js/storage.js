@@ -265,6 +265,7 @@
     out.reminderDefault = Utils.clamp(num(s.reminderDefault, 30), 0, 10080);
     out.hideCompleted = bool(s.hideCompleted);
     out.seeded = bool(s.seeded);
+    if (typeof s.lastVersion === 'string') out.lastVersion = s.lastVersion.slice(0, 40);
     return out;
   }
 

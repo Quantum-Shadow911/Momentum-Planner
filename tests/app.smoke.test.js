@@ -74,7 +74,9 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(4);
     expect(Store.get().events.length).toBe(5);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.0.0-school-first');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.0.1-school-first');
+    expect(Store.get().settings.lastVersion).toBe('2.0.1-school-first');
+    expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(18);
     expect(document.getElementById('viewHost').innerHTML).toContain('Recommended next task');
     expect(document.getElementById('viewHost').innerHTML).toContain("Today's priorities");

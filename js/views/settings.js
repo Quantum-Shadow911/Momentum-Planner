@@ -12,11 +12,23 @@
     const pct = Math.min(100, Math.round((bytes / quota) * 100));
     const kb = Math.max(1, Math.round(bytes / 1024));
     const warn = bytes > 4 * 1024 * 1024;
+    const probe = Storage.probe();
+    const ls = Storage.lastSave();
+    let status;
+    if (!probe.ok) {
+      status = '<strong style="color:var(--red)">Saving is blocked by your browser — see the warning at the top of the page.</strong>';
+    } else if (ls.at) {
+      const when = new Date(ls.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      status = ls.ok ? `Saving works. Last saved ${when}.` : '<strong style="color:var(--red)">Last save failed — storage may be full.</strong>';
+    } else {
+      status = 'Saving works.';
+    }
     el.innerHTML = `
       <div class="meter-row">
         <span class="bar"><span class="bar-fill ${warn ? 'bar-red' : 'bar-green'}" style="width:${pct}%"></span></span>
         <span class="muted small">${kb} KB of ~5 MB browser storage used (${pct}%)</span>
       </div>
+      <div class="muted small">${status}</div>
       <div class="muted small">${atts} attachment${atts === 1 ? '' : 's'} stored${warn ? ' — <strong style="color:var(--red)">storage is nearly full; export a backup and remove large attachments.</strong>' : ''}</div>`;
   }
 

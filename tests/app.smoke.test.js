@@ -68,13 +68,23 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(7);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.3.2-class-pages');
-    expect(Store.get().settings.lastVersion).toBe('2.3.2-class-pages');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.3.3-save-proof');
+    expect(Store.get().settings.lastVersion).toBe('2.3.3-save-proof');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(12);
     expect(document.getElementById('viewHost').innerHTML).toContain('Recommended next task');
     expect(document.getElementById('viewHost').innerHTML).toContain('To-do list — today');
     expect(document.getElementById('viewHost').innerHTML).toContain('appointments');
+  });
+
+  it('shows no storage warning on a healthy http origin and proves saving works', () => {
+    expect(document.getElementById('storageBanner')).toBeNull();
+    expect(App.storageWarning()).toEqual({ ok: true, reason: '' });
+    expect(document.getElementById('saveStatus').textContent).toMatch(/Saved \d/);
+    Store.updateSettings({ userName: 'SaveProbe' });
+    expect(document.getElementById('saveStatus').textContent).toMatch(/Saved \d/);
+    expect(JSON.parse(localStorage.getItem('momentum.data.v1')).settings.userName).toBe('SaveProbe');
+    Store.updateSettings({ userName: '' });
   });
 
   it('dashboard renders the school-portal layout: schedule panel, to-do, exams, dates, calendar', () => {

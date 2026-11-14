@@ -11,7 +11,7 @@ npm start          # serves at http://localhost:4173 (zero-dep Node server)
 …or open `index.html` directly in a browser, or host the folder statically (works on GitHub Pages).
 
 ```bash
-npm test           # run the 111-test suite (Vitest + jsdom)
+npm test           # run the 117-test suite (Vitest + jsdom)
 npm run test:watch
 ```
 
@@ -35,6 +35,7 @@ npm run test:watch
 | **Weekly academic review** | One-click 📋 Weekly review on the dashboard: overdue work, deadlines and tests ahead, per-day workload bars vs. your limit, activities, and completed-this-week summary |
 | **Conflict detection** | The daily planner warns when timed events, study sessions or timed tasks overlap |
 | **Storage meter** | Settings shows how much of the ~5 MB browser storage is in use and counts attachments, warning near the limit |
+| **Save health** | Boot-time storage probe: a red banner explains how to fix blocked storage (private mode / cookies), a file:// banner points to the live site, and a "Saved HH:MM" indicator in the sidebar proves saving works |
 | **Categories** | 9 seeded categories; full CRUD with icon + color picker |
 | **Smart prioritization** | Weighted scoring: deadline proximity, overdue boost, assigned priority, in-progress momentum, quick-win bonus, long-task drag for far-out work, dependency blocking (blocked tasks are never recommended) |
 | **Analytics** | 14-day completion trend (line), overall completion (donut), category & project progress (bars), per-class progress, study time trend (hours of completed sessions), 7-day workload chart with over-limit warnings, submission pipeline, completion-by-weekday history, open-tasks-by-priority — all computed from real saved data |

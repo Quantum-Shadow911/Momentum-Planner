@@ -354,16 +354,34 @@
     }
   }
 
+  let lastSaveInfo = { ok: null, at: null };
+
   function save(state) {
     try {
       global.localStorage.setItem(KEY, JSON.stringify(state));
+      lastSaveInfo = { ok: true, at: new Date().toISOString() };
       return true;
     } catch (e) {
+      lastSaveInfo = { ok: false, at: new Date().toISOString() };
       console.error('Failed to save data.', e);
       if (global.UI && global.UI.toast) {
         global.UI.toast('warning', 'Save failed', 'Storage is full or unavailable. Export a backup from Settings.');
       }
       return false;
+    }
+  }
+
+  function lastSave() { return lastSaveInfo; }
+
+  function probe() {
+    try {
+      const k = '__momentum_probe__';
+      global.localStorage.setItem(k, '1');
+      global.localStorage.removeItem(k);
+      return { ok: true, reason: '' };
+    } catch (e) {
+      const name = e && e.name;
+      return { ok: false, reason: name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED' ? 'quota' : 'blocked' };
     }
   }
 
@@ -456,7 +474,7 @@
   const Storage = {
     KEY, PRIORITIES, STATUSES, RECURRENCE_TYPES, ASSIGNMENT_TYPES, SUBMISSION_STATES, MAX_ATTACHMENT_BYTES,
     emptyState, normalize, normalizeTask, normalizeProject, normalizeGoal, normalizeNote, normalizeCategory, normalizeClass, normalizeEvent, normalizeSession, normalizeAttachment, normalizeBreak,
-    load, save, snapshot, listBackups, restoreBackup, pushTrash, restoreFromTrash, exportJson, importJson
+    load, save, lastSave, probe, snapshot, listBackups, restoreBackup, pushTrash, restoreFromTrash, exportJson, importJson
   };
 
   global.Storage = Storage;

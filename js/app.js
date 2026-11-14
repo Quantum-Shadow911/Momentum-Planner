@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.3.2-class-pages';
+  const APP_VERSION = '2.3.3-save-proof';
 
   const NAV = [
     { section: 'Overview' },
@@ -72,6 +72,7 @@
     if (!UI.modalIsOpen()) Views[currentView].render(host);
     buildNav();
     updateThemeToggle();
+    updateSaveStatus();
   }
 
   /* ---------- Theme ---------- */
@@ -277,7 +278,9 @@
 
     const vEl = document.getElementById('appVersion');
     if (vEl) vEl.textContent = 'Momentum v' + APP_VERSION;
+    showStorageBanners();
     Store.subscribe(rerender);
+    Store.subscribe(updateSaveStatus);
     setInterval(applyTheme, 10 * 60 * 1000);
     seedIfEmpty();
     Reminders.start();
@@ -325,7 +328,63 @@
     root.querySelector('[data-tx]').addEventListener('click', () => Timer.cancel());
   }
 
-  const App = { boot, go, setTheme, applyTheme, effectiveTheme, version: APP_VERSION, openTask: id => UI.openTaskViewer(id), loadSampleData, openSearch };
+  /* ---------- Storage health: banners + save indicator ---------- */
+  let storageProbe = null;
+
+  function updateSaveStatus() {
+    const el = document.getElementById('saveStatus');
+    if (!el) return;
+    if (storageProbe && !storageProbe.ok) {
+      el.textContent = '\u26A0\uFE0F Not saving';
+      el.style.color = 'var(--red)';
+      return;
+    }
+    const ls = Storage.lastSave();
+    el.style.color = '';
+    if (ls.ok === false) { el.textContent = '\u26A0\uFE0F Save failed'; return; }
+    if (ls.at) {
+      const d = new Date(ls.at);
+      el.textContent = '\u2705 Saved ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } else {
+      el.textContent = '';
+    }
+  }
+
+  function showStorageBanners() {
+    storageProbe = Storage.probe();
+    const main = document.querySelector('.main');
+    if (!main) return;
+    const old = document.getElementById('storageBanner');
+    if (old) old.remove();
+    let html = '';
+    if (!storageProbe.ok) {
+      html = `<strong>\u26A0\uFE0F Your browser is blocking saving.</strong> Nothing you add will be kept. Fix: don't use a Private/Incognito window, and allow cookies & site data for this website (Safari: Settings, or Chrome: the lock icon in the address bar).`;
+    } else if (global.location && global.location.protocol === 'file:') {
+      let dismissed = false;
+      try { dismissed = global.sessionStorage.getItem('momentum.fileBannerDismissed') === '1'; } catch (e) { dismissed = false; }
+      if (!dismissed) {
+        html = `<strong>\u2139\uFE0F You're using a downloaded copy.</strong> Data saved here stays in this folder only and won't appear anywhere else. For one planner that's always up to date, use the live link instead: <strong>https://quantum-shadow911.github.io/Planner/</strong>`;
+      }
+    }
+    if (!html) { updateSaveStatus(); return; }
+    const banner = document.createElement('div');
+    banner.id = 'storageBanner';
+    banner.className = 'storage-banner' + (storageProbe.ok ? ' storage-banner-info' : '');
+    banner.innerHTML = `<span>${html}</span>`;
+    const close = document.createElement('button');
+    close.className = 'icon-btn';
+    close.setAttribute('aria-label', 'Dismiss');
+    close.textContent = '\u2715';
+    close.addEventListener('click', () => {
+      try { global.sessionStorage.setItem('momentum.fileBannerDismissed', '1'); } catch (e) { /* ignore */ }
+      banner.remove();
+    });
+    banner.appendChild(close);
+    main.insertBefore(banner, main.firstChild);
+    updateSaveStatus();
+  }
+
+  const App = { boot, go, setTheme, applyTheme, effectiveTheme, version: APP_VERSION, openTask: id => UI.openTaskViewer(id), loadSampleData, openSearch, storageWarning: () => storageProbe };
 
   global.App = App;
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

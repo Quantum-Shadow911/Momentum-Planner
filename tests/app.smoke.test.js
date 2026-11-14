@@ -54,6 +54,7 @@ await import('../js/views/daily.js');
 await import('../js/views/monthly.js');
 await import('../js/views/agenda.js');
 await import('../js/views/analytics.js');
+await import('../js/views/study.js');
 await import('../js/views/settings.js');
 
 for (const k of ['Utils', 'H', 'Storage', 'Store', 'Priority', 'Planner', 'Timer', 'Charts', 'Reminders', 'UI', 'Views']) {
@@ -76,12 +77,13 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(7);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.8-new-device-hint');
-    expect(Store.get().settings.lastVersion).toBe('2.4.8-new-device-hint');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.9-study-page');
+    expect(Store.get().settings.lastVersion).toBe('2.4.9-study-page');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
-    expect(document.querySelectorAll('.nav-item').length).toBe(12);
+    expect(document.querySelectorAll('.nav-item').length).toBe(13);
     const navViews = [...document.querySelectorAll('.nav-item')].map(b => b.dataset.view);
     expect(navViews).toContain('dates');
+    expect(navViews).toContain('study');
     expect(navViews).not.toContain('monthly');
     expect(document.getElementById('viewHost').innerHTML).toContain('Recommended next task');
     expect(document.getElementById('viewHost').innerHTML).toContain('To-do list — today');
@@ -427,5 +429,52 @@ describe('v2.1.0 app-level features', () => {
     Store.deleteEvent('evt-test-conflict');
     const t = Store.get().tasks.find(x => x.title === 'Timed conflict task');
     if (t) Store.deleteTask(t.id);
+  });
+});
+
+describe('study timer & essentials page', () => {
+  it('has a sidebar item and renders the full study page', () => {
+    const navViews = [...document.querySelectorAll('.nav-item')].map(b => b.dataset.view);
+    expect(navViews).toContain('study');
+    App.go('study');
+    expect(document.querySelector('#viewHost h2').textContent).toContain('Study Timer & Essentials');
+    expect(document.getElementById('studyClock')).toBeTruthy();
+    expect(document.getElementById('studyTask')).toBeTruthy();
+    expect(document.querySelectorAll('#essList input[type="checkbox"]').length).toBe(6);
+    expect(document.getElementById('studySessions')).toBeTruthy();
+  });
+
+  it('starts the timer from the page and logs minutes on finish', () => {
+    const t = Store.saveTask({ title: 'Study page timer task', dueDate: Utils.todayStr() });
+    App.go('study');
+    document.getElementById('studyTask').value = t.id;
+    document.getElementById('studyToggle').click();
+    expect(Timer.status().active).toBe(true);
+    expect(Timer.status().taskId).toBe(t.id);
+    const before = Store.getTask(t.id).actualMin || 0;
+    document.getElementById('studyFinish').click();
+    expect(Store.getTask(t.id).actualMin).toBeGreaterThanOrEqual(before + 1);
+    expect(Timer.status().active).toBe(false);
+    Store.deleteTask(t.id);
+  });
+
+  it('persists the study essentials checklist', () => {
+    App.go('study');
+    const box = document.querySelector('#essList input[type="checkbox"]');
+    box.click();
+    expect(Object.values(Store.get().settings.studyEssentials || {}).some(Boolean)).toBe(true);
+    document.getElementById('essReset').click();
+    expect(Object.values(Store.get().settings.studyEssentials || {}).some(Boolean)).toBe(false);
+  });
+
+  it("shows today's planned sessions with a Study this button", () => {
+    const t = Store.saveTask({ title: 'Session display task', classId: 'cls-math', dueDate: Utils.addDays(Utils.todayStr(), 3) });
+    Store.addSession(t.id, { date: Utils.todayStr(), time: '16:00', durationMin: 45, objective: 'Finish problems 1-10' });
+    App.go('study');
+    const host = document.getElementById('studySessions');
+    const rows = [...host.querySelectorAll('.task-item')].filter(r => r.textContent.includes('Session display task'));
+    expect(rows.length).toBe(1);
+    expect(rows[0].textContent).toContain('Study this');
+    Store.deleteTask(t.id);
   });
 });

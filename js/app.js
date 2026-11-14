@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.4.8-new-device-hint';
+  const APP_VERSION = '2.4.9-study-page';
 
   const NAV = [
     { section: 'Overview' },
@@ -14,6 +14,7 @@
     { id: 'classes', icon: '📘', label: 'My Classes' },
     { id: 'tasks', icon: '✅', label: 'Assignments' },
     { id: 'exams', icon: '📄', label: 'Exams & Quizzes' },
+    { id: 'study', icon: '\u23f1\ufe0f', label: 'Study Timer' },
     { id: 'daily', icon: '📅', label: 'Daily Planner' },
     { id: 'dates', icon: '📌', label: 'Important Dates/Calendar' },
     { id: 'agenda', icon: '📋', label: 'Agenda' },

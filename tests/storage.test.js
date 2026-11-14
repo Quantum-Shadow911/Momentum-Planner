@@ -244,3 +244,11 @@ describe('settings persistence and legacy time migration', () => {
     expect(t.actualMin).toBe(100);
   });
 });
+
+describe('auto theme setting', () => {
+  it('persists the auto theme choice and rejects garbage values', () => {
+    expect(S.normalize({ settings: { theme: 'auto' } }).settings.theme).toBe('auto');
+    expect(S.normalize({ settings: { theme: 'blue' } }).settings.theme).toBe('auto');
+    expect(S.normalize({ settings: { theme: 'blue' } }, { settings: { theme: 'dark' } }).settings.theme).toBe('dark');
+  });
+});

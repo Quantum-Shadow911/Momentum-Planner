@@ -132,6 +132,29 @@ describe('theme & interactions', () => {
     App.setTheme('light');
   });
 
+  it('auto theme resolves to dark at night and light in the daytime', () => {
+    App.setTheme('auto');
+    const h = new Date().getHours();
+    const expected = (h >= 19 || h < 7) ? 'dark' : 'light';
+    expect(App.effectiveTheme()).toBe(expected);
+    expect(document.documentElement.dataset.theme).toBe(expected);
+    expect(JSON.parse(dom.window.localStorage.getItem('momentum.data.v1')).settings.theme).toBe('auto');
+    expect(document.getElementById('themeToggle').textContent).toContain('Auto');
+    App.setTheme('light');
+    expect(App.effectiveTheme()).toBe('light');
+  });
+
+  it('settings offers the auto day/night theme choice', () => {
+    App.go('settings');
+    const sel = document.getElementById('setThemeMode');
+    expect(sel).toBeTruthy();
+    expect(Array.from(sel.options).map(o => o.value)).toEqual(['auto', 'light', 'dark']);
+    sel.value = 'auto';
+    sel.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    expect(Store.get().settings.theme).toBe('auto');
+    App.setTheme('light');
+  });
+
   it('nav Inbox opens a dedicated Inbox page (regression: mapping ran after the view guard)', () => {
     document.querySelector('[data-view="inbox"]').click();
     expect(document.getElementById('topbarTitle').textContent).toBe('Inbox');

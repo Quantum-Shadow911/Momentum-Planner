@@ -22,8 +22,12 @@
             <span class="badge badge-done">Up to date</span>
           </div>
           <div class="settings-row">
-            <div><div class="s-label">Dark theme</div><div class="s-desc">Switch between light and dark mode. Your choice is remembered.</div></div>
-            <label class="switch"><input type="checkbox" id="setTheme" ${s.theme === 'dark' ? 'checked' : ''}><span class="track"></span></label>
+            <div><div class="s-label">Theme</div><div class="s-desc">Auto follows the time of day — light in the daytime, dark at night (7 PM – 7 AM). Your choice is remembered.</div></div>
+            <select class="select" id="setThemeMode" style="width:auto">
+              <option value="auto" ${s.theme === 'auto' ? 'selected' : ''}>🌗 Auto (day / night)</option>
+              <option value="light" ${s.theme === 'light' ? 'selected' : ''}>☀️ Light (always)</option>
+              <option value="dark" ${s.theme === 'dark' ? 'selected' : ''}>🌙 Dark (always)</option>
+            </select>
           </div>
           <div class="settings-row">
             <div><div class="s-label">Week starts on</div><div class="s-desc">Affects weekly planner and analytics.</div></div>
@@ -110,7 +114,7 @@
 
     /* profile & appearance */
     host.querySelector('#setName').addEventListener('change', e => Store.updateSettings({ userName: e.target.value.trim() }));
-    host.querySelector('#setTheme').addEventListener('change', e => App.setTheme(e.target.checked ? 'dark' : 'light'));
+    host.querySelector('#setThemeMode').addEventListener('change', e => App.setTheme(e.target.value));
     host.querySelector('#setWeekStart').addEventListener('change', e => Store.updateSettings({ weekStartsOn: Number(e.target.value) }));
     host.querySelector('#setReminder').addEventListener('change', e => Store.updateSettings({ reminderDefault: Number(e.target.value) }));
     host.querySelector('#setLoadLimit').addEventListener('change', e => Store.updateSettings({ dailyLoadLimit: Number(e.target.value) }));

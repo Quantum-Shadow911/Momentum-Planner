@@ -82,19 +82,34 @@
 
   /* ---------- Theme ---------- */
   function setTheme(theme) {
-    document.documentElement.dataset.theme = theme;
     Store.updateSettings({ theme });
-    updateThemeToggle();
+    applyTheme();
+  }
+
+  const NIGHT_START = 19;
+  const NIGHT_END = 7;
+
+  function effectiveTheme() {
+    const t = Store.get().settings.theme || 'light';
+    if (t !== 'auto') return t;
+    const h = new Date().getHours();
+    return (h >= NIGHT_START || h < NIGHT_END) ? 'dark' : 'light';
   }
 
   function updateThemeToggle() {
     const btn = document.getElementById('themeToggle');
-    const dark = document.documentElement.dataset.theme === 'dark';
-    btn.innerHTML = dark ? '☀️ <span>Light mode</span>' : '🌙 <span>Dark mode</span>';
+    const mode = Store.get().settings.theme || 'light';
+    if (mode === 'auto') {
+      btn.innerHTML = document.documentElement.dataset.theme === 'dark'
+        ? '🌗 <span>Auto · night</span>'
+        : '🌗 <span>Auto · day</span>';
+    } else {
+      btn.innerHTML = document.documentElement.dataset.theme === 'dark' ? '☀️ <span>Light mode</span>' : '🌙 <span>Dark mode</span>';
+    }
   }
 
   function applyTheme() {
-    document.documentElement.dataset.theme = Store.get().settings.theme || 'light';
+    document.documentElement.dataset.theme = effectiveTheme();
     updateThemeToggle();
   }
 
@@ -312,6 +327,7 @@
     const vEl = document.getElementById('appVersion');
     if (vEl) vEl.textContent = 'Momentum v' + APP_VERSION;
     Store.subscribe(rerender);
+    setInterval(applyTheme, 10 * 60 * 1000);
     seedIfEmpty();
     Reminders.start();
     Timer.init();
@@ -358,7 +374,7 @@
     root.querySelector('[data-tx]').addEventListener('click', () => Timer.cancel());
   }
 
-  const App = { boot, go, setTheme, version: APP_VERSION, openTask: id => UI.openTaskViewer(id), loadSampleData, openSearch };
+  const App = { boot, go, setTheme, applyTheme, effectiveTheme, version: APP_VERSION, openTask: id => UI.openTaskViewer(id), loadSampleData, openSearch };
 
   global.App = App;
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

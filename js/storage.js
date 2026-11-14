@@ -29,7 +29,7 @@
       breaks: [],
       activity: [],
       settings: {
-        theme: 'light',
+        theme: 'auto',
         userName: '',
         weekStartsOn: 1,
         browserNotifications: false,
@@ -264,7 +264,7 @@
   function normalizeSettings(s, prev) {
     const out = Object.assign({}, (prev || emptyState().settings));
     if (!s || typeof s !== 'object') return out;
-    if (s.theme === 'light' || s.theme === 'dark') out.theme = s.theme;
+    if (s.theme === 'light' || s.theme === 'dark' || s.theme === 'auto') out.theme = s.theme;
     if (typeof s.userName === 'string') out.userName = s.userName.slice(0, 60);
     out.weekStartsOn = s.weekStartsOn === 0 ? 0 : 1;
     out.browserNotifications = bool(s.browserNotifications);

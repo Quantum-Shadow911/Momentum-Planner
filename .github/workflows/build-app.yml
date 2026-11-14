@@ -1,4 +1,4 @@
-name: Build Mac app
+name: Build Mac & Windows apps
 
 on:
   push:
@@ -30,12 +30,23 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: app-v2.4.7
-          name: Momentum for Mac (v2.4.7)
+          tag_name: app-v2.4.11
+          name: Momentum (v2.4.11) — Mac & Windows
           body: |
-            **Momentum as a real Mac application (.app).**
+            **Momentum as a real desktop application — Mac (.app/.dmg) and Windows (.exe installer).**
 
-            ## How to install
+            ## Mac install
+            1. Download **Momentum-2.4.11-universal.dmg** (or the .zip)
+            2. Open the downloaded file
+            3. Drag **Momentum** into your **Applications** folder
+            4. Open Momentum from Applications
+
+            ## Windows install
+            1. Download **Momentum-Setup-2.4.11.exe**
+            2. Run it (if Windows SmartScreen shows "Windows protected your PC", click **More info** → **Run anyway** — the app is unsigned because it is free and open-source)
+            3. Choose a folder and finish the installer — Momentum appears in your Start menu and desktop
+
+            ## First open on Mac (one time only)
             1. Download **Momentum-universal.dmg** (or the .zip)
             2. Open the downloaded file
             3. Drag **Momentum** into your **Applications** folder
@@ -47,7 +58,7 @@ jobs:
             - **Right-click** the Momentum app → click **Open** → click **Open** again, **or**
             - System Settings → Privacy & Security → scroll down → **Open Anyway**
 
-            ## Updates
+            ## Updates (Mac & Windows)
             The app loads the planner live, so its content updates itself automatically —
             no reinstalling. Your data is stored inside the app's own profile on this Mac.
 
@@ -58,5 +69,57 @@ jobs:
           files: |
             electron/dist/*.zip
             electron/dist/*.dmg
+          draft: false
+          prerelease: false
+
+  build-windows:
+    needs: build-mac
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install build dependencies
+        working-directory: electron
+        run: npm install --no-audit --no-fund
+
+      - name: Build Momentum installer (Windows)
+        working-directory: electron
+        run: npx electron-builder --publish never
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app-v2.4.11
+          name: Momentum (v2.4.11) — Mac & Windows
+          body: |
+            **Momentum as a real desktop application — Mac (.app/.dmg) and Windows (.exe installer).**
+
+            ## Mac install
+            1. Download **Momentum-2.4.11-universal.dmg** (or the .zip)
+            2. Open the downloaded file
+            3. Drag **Momentum** into your **Applications** folder
+            4. Open Momentum from Applications
+            5. First open (one time only): if macOS shows a warning, right-click the app → **Open** → **Open** again, or use System Settings → Privacy & Security → **Open Anyway**
+
+            ## Windows install
+            1. Download **Momentum-Setup-2.4.11.exe**
+            2. Run it (if Windows SmartScreen shows "Windows protected your PC", click **More info** → **Run anyway** — the app is unsigned because it is free and open-source)
+            3. Choose a folder and finish the installer — Momentum appears in your Start menu and desktop
+
+            ## Updates
+            The app loads the planner live, so its content updates itself automatically —
+            no reinstalling. Your data is stored inside the app's own profile on this computer.
+
+            ## Notes
+            - Mac build is universal: works on both Apple Silicon (M1–M4) and Intel Macs
+            - Windows build is 64-bit
+            - The apps are unsigned, so macOS/Windows show a one-time warning — normal for free open-source apps
+          files: |
+            electron/dist/*.exe
+            electron/dist/*.exe.blockmap
           draft: false
           prerelease: false

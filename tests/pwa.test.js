@@ -39,7 +39,7 @@ describe('PWA install support', () => {
 
   it('service worker caches the app shell, refreshes on navigation and cleans old caches', () => {
     const sw = readFileSync(root + 'sw.js', 'utf8');
-    expect(sw).toContain("const CACHE = 'momentum-v2.4.10'");
+    expect(sw).toContain("const CACHE = 'momentum-v2.4.11'");
     expect(sw).toContain("addEventListener('install'");
     expect(sw).toContain("addEventListener('activate'");
     expect(sw).toContain("addEventListener('fetch'");
@@ -64,15 +64,20 @@ describe('PWA install support', () => {
     expect(pkg.build.appId).toContain('momentum');
     expect(JSON.stringify(pkg.build.mac.target)).toContain('universal');
     expect(pkg.build.mac.identity).toBeNull();
+    expect(JSON.stringify(pkg.build.win.target)).toContain('nsis');
+    expect(pkg.build.win.icon).toBe('../icons/icon-512.png');
     expect(existsSync(root + 'electron/offline.html')).toBe(true);
   });
 
-  it('mac build workflow packages and releases the app', () => {
+  it('desktop build workflow packages and releases Mac & Windows apps', () => {
     const wf = readFileSync(root + '.github/workflows/build-app.yml', 'utf8');
     expect(wf).toContain('runs-on: macos-latest');
+    expect(wf).toContain('runs-on: windows-latest');
     expect(wf).toContain('electron-builder');
     expect(wf).toContain('action-gh-release');
     expect(wf).toContain('contents: write');
+    expect(wf).toContain('electron/dist/*.exe');
+    expect(wf).toContain('electron/dist/*.dmg');
   });
 
   it('launcher file redirects to the live site (one-time download, always up to date)', () => {
@@ -86,5 +91,6 @@ describe('PWA install support', () => {
     expect(settings).toContain('Install as an app');
     expect(settings).toContain('Add to Dock');
     expect(settings).toContain('Add to Home Screen');
+    expect(settings).toContain('Download Momentum for Windows');
   });
 });

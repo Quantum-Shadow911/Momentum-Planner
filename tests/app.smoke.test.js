@@ -36,6 +36,8 @@ await import('../js/charts.js');
 await import('../js/reminders.js');
 await import('../js/ui.js');
 await import('../js/views/dashboard.js');
+await import('../js/views/classes.js');
+await import('../js/views/activities.js');
 await import('../js/views/tasks.js');
 await import('../js/views/daily.js');
 await import('../js/views/weekly.js');
@@ -65,9 +67,12 @@ describe('app boot', () => {
   it('boots with seeded sample data and renders the dashboard', () => {
     expect(Store.get().tasks.length).toBeGreaterThan(5);
     expect(Store.get().categories.length).toBe(9);
-    expect(document.querySelectorAll('.nav-item').length).toBe(12);
+    expect(Store.get().classes.length).toBe(4);
+    expect(Store.get().events.length).toBe(5);
+    expect(document.querySelectorAll('.nav-item').length).toBe(15);
     expect(document.getElementById('viewHost').innerHTML).toContain('Recommended next task');
-    expect(document.getElementById('viewHost').innerHTML).toContain("Today's schedule");
+    expect(document.getElementById('viewHost').innerHTML).toContain("Today's priorities");
+    expect(document.getElementById('viewHost').innerHTML).toContain('Extracurricular schedule');
   });
 
   it('persists to localStorage automatically', () => {
@@ -77,7 +82,7 @@ describe('app boot', () => {
 });
 
 describe('all views render without errors', () => {
-  const viewIds = ['daily', 'weekly', 'monthly', 'agenda', 'kanban', 'tasks', 'projects', 'goals', 'analytics', 'notes', 'settings'];
+  const viewIds = ['classes', 'activities', 'daily', 'weekly', 'monthly', 'agenda', 'kanban', 'tasks', 'projects', 'goals', 'analytics', 'notes', 'settings'];
   viewIds.forEach(id => {
     it(`renders ${id}`, () => {
       expect(() => App.go(id)).not.toThrow();

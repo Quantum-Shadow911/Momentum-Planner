@@ -9,6 +9,11 @@
     const items = Priority.allOn(state, currentDate);
     const timed = items.filter(t => t.time);
     const allDay = items.filter(t => !t.time);
+    const evts = Priority.eventsOn(state, currentDate);
+    const sessions = Priority.sessionsOn(state, currentDate);
+    const timedSessions = sessions.filter(e => e.session.time);
+    const looseSessions = sessions.filter(e => !e.session.time);
+    const load = Priority.workloadOn(state, currentDate);
 
     host.innerHTML = `
       <div class="page-head">
@@ -20,13 +25,21 @@
         </div>
       </div>
       <div class="day-nav">
-        <div class="day-title">${Utils.fmtDate(currentDate, { long: true })} ${currentDate === Utils.todayStr() ? '<span class="badge badge-today">Today</span>' : ''}</div>
+        <div class="day-title">${Utils.fmtDate(currentDate, { long: true })} ${currentDate === Utils.todayStr() ? '<span class="badge badge-today">Today</span>' : ''}
+          ${load.total ? `<span class="badge ${load.total >= (state.settings.dailyLoadLimit || 180) ? 'badge-overdue' : 'badge-cat'}">⚖ ${Utils.fmtDuration(load.total)} planned</span>` : ''}
+        </div>
       </div>
+      ${evts.length ? `<div class="card" style="padding:12px 18px;margin-bottom:14px;border-left:4px solid var(--green)">
+        <div class="card-title" style="margin-bottom:8px"><span>⭐ Fixed commitments (${evts.length})</span>
+          <button class="link-btn" data-go="activities">Manage events →</button></div>
+        <div class="row-wrap" id="dayEvents"></div>
+      </div>` : ''}
       <div class="card" style="padding:14px 18px">
         <div class="all-day-box" id="allDayBox">
-          <div class="card-title" style="margin-bottom:8px"><span>📌 Anytime / all-day (${allDay.length})</span>
+          <div class="card-title" style="margin-bottom:8px"><span>📌 Anytime / all-day (${allDay.length + looseSessions.length})</span>
             <button class="btn btn-sm btn-ghost" id="addAnytime">＋ Add</button></div>
           <div class="task-list" id="allDayList"></div>
+          <div class="row-wrap" id="looseSessions" style="margin-top:8px"></div>
         </div>
         <div class="time-grid" id="timeGrid"></div>
       </div>
@@ -37,11 +50,39 @@
     host.querySelector('#dToday').addEventListener('click', () => { currentDate = Utils.todayStr(); render(host); });
     host.querySelector('#addAnytime').addEventListener('click', () => UI.openTaskEditor(null, { dueDate: currentDate }));
 
+    host.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => App.go(b.dataset.go)));
+
+    const evHost = host.querySelector('#dayEvents');
+    if (evHost) {
+      evts.forEach(e => {
+        const chip = document.createElement('span');
+        chip.className = 'badge';
+        chip.style.background = e.color + '22';
+        chip.style.padding = '6px 12px';
+        chip.innerHTML = `${H(e.icon)} <strong>${H(e.title)}</strong>${e.time ? ` · ${H(Utils.fmtTime(e.time))}${e.endTime ? '–' + H(Utils.fmtTime(e.endTime)) : ''}` : ''}${e.location ? ' · 📍 ' + H(e.location) : ''}`;
+        evHost.appendChild(chip);
+      });
+    }
+
     const allDayList = host.querySelector('#allDayList');
     if (!allDay.length) {
-      allDayList.innerHTML = `<div class="muted small" style="padding:2px 0">No anytime tasks — timed tasks appear in the schedule below.</div>`;
+      allDayList.innerHTML = `<div class="muted small" style="padding:2px 0">No anytime tasks — timed items appear in the schedule below.</div>`;
     } else {
       allDay.forEach(t => allDayList.appendChild(UI.taskItem(t)));
+    }
+
+    const looseHost = host.querySelector('#looseSessions');
+    if (looseHost) {
+      looseSessions.forEach(({ session: s, task: t }) => {
+        const mini = document.createElement('div');
+        mini.className = 'mini-task' + (s.done ? ' done' : '');
+        mini.style.borderLeftColor = 'var(--purple)';
+        mini.style.borderLeftStyle = 'dashed';
+        mini.style.flex = '1 1 220px';
+        mini.innerHTML = `<div class="mt-title">🧠 ${H(t.title)}</div><div class="mt-meta">${H(Utils.fmtDuration(s.durationMin))}${s.objective ? ' · ' + H(s.objective.slice(0, 30)) : ''}</div>`;
+        mini.addEventListener('click', () => UI.openTaskViewer(t.id));
+        looseHost.appendChild(mini);
+      });
     }
 
     const grid = host.querySelector('#timeGrid');
@@ -67,6 +108,25 @@
         const item = UI.taskItem(t, { draggable: true });
         item.addEventListener('dragstart', e => e.dataTransfer.setData('text/task-id', t.id));
         zone.appendChild(item);
+      });
+      timedSessions.filter(e => parseInt(e.session.time.slice(0, 2), 10) === h).forEach(({ session: s, task: t }) => {
+        const cls = UI.classOf(t);
+        const card = document.createElement('div');
+        card.className = 'task-item' + (s.done ? ' done' : '');
+        card.style.borderLeft = `3px dashed ${cls ? cls.color : 'var(--purple)'}`;
+        card.innerHTML = `
+          <button class="task-check ${s.done ? 'checked' : ''}" aria-label="Toggle session">✓</button>
+          <div class="task-main">
+            <div class="task-title" style="font-size:13.5px">🧠 ${H(t.title)}</div>
+            <div class="task-meta">
+              <span class="meta-txt">⏱ ${H(Utils.fmtDuration(s.durationMin))}</span>
+              ${s.objective ? `<span class="meta-txt">🎯 ${H(s.objective)}</span>` : ''}
+              ${t.dueDate ? `<span class="meta-txt">due ${H(Utils.fmtDateSmart(t.dueDate))}</span>` : ''}
+            </div>
+          </div>`;
+        card.querySelector('.task-check').addEventListener('click', () => Store.toggleSession(t.id, s.id));
+        card.querySelector('.task-main').addEventListener('click', () => UI.openTaskViewer(t.id));
+        zone.appendChild(card);
       });
       grid.appendChild(row);
     }

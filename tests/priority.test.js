@@ -84,6 +84,34 @@ describe('selectors & stats', () => {
     expect(up.map(t => t.id)).toEqual(['2', '3']);
   });
 
+  it('school selectors: sessions, events, assessments and workload', () => {
+    const st2 = makeState([
+      { id: 'hw', title: 'Homework', dueDate: '2025-06-06', assignmentType: 'homework', estimateMin: 60,
+        sessions: [{ date: '2025-06-05', time: '16:00', durationMin: 30, objective: 'draft' }, { date: '2025-06-05', durationMin: 30, done: true }] },
+      { id: 'quiz', title: 'Quiz', dueDate: '2025-06-10', assignmentType: 'quiz' },
+      { id: 'plain', title: 'Plain', dueDate: '2025-06-06' }
+    ]);
+    st2.events.push({ id: 'e1', title: 'Practice', date: '2025-06-05', time: '18:00', color: '#10b981', icon: '⚽' });
+    const today = '2025-06-05';
+    const sessions = P.sessionsOn(st2, today);
+    expect(sessions.length).toBe(2);
+    expect(P.eventsOn(st2, today).length).toBe(1);
+    expect(P.upcomingAssessments(st2, 14, today).map(t => t.id)).toEqual(['quiz']);
+    const wl = P.workloadOn(st2, today);
+    expect(wl.taskLoad).toBe(0);
+    expect(wl.sessionLoad).toBe(60);
+    expect(wl.total).toBe(60);
+    const wlDue = P.workloadOn(st2, '2025-06-06');
+    expect(wlDue.taskLoad).toBe(60);
+    expect(wlDue.sessionLoad).toBe(0);
+    expect(wlDue.total).toBe(60);
+    const sch = P.schoolStats(st2, today);
+    expect(sch.dueSoon).toBe(3);
+    expect(sch.assessments).toBe(1);
+    expect(sch.eventsThisWeek).toBe(1);
+    expect(sch.sessionsTodayDone).toBe(1);
+  });
+
   it('stats computes counts from real data', () => {
     const st = P.stats(state, '2025-06-05');
     expect(st.total).toBe(6);

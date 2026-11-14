@@ -102,17 +102,18 @@
       case 'daily': next = Utils.addDays(base, r.interval); break;
       case 'weekdays': {
         let d = Utils.addDays(base, 1);
+        let found = 0;
         let guard = 0;
-        while (guard++ < 14) {
+        while (guard++ < 400 && found < r.interval) {
           const dow = Utils.parseDate(d).getDay();
-          if (dow !== 0 && dow !== 6) break;
-          d = Utils.addDays(d, 1);
+          if (dow !== 0 && dow !== 6) found++;
+          if (found < r.interval) d = Utils.addDays(d, 1);
         }
         next = d;
         break;
       }
       case 'weekly': next = Utils.addDays(base, 7 * r.interval); break;
-      case 'biweekly': next = Utils.addDays(base, 14); break;
+      case 'biweekly': next = Utils.addDays(base, 14 * r.interval); break;
       case 'monthly': next = Utils.addMonths(base, r.interval); break;
     }
     if (!next) return;
@@ -274,6 +275,89 @@
     update(s => s, { type: 'milestone-toggled' });
   }
 
+  /* ================= Classes ================= */
+
+  function saveClass(fields) {
+    const clean = Storage.normalizeClass(fields);
+    if (!clean) return null;
+    const existing = state.classes.find(c => c.id === clean.id);
+    if (existing) Object.assign(existing, clean);
+    else state.classes.push(clean);
+    update(s => s, { type: 'class-saved', id: clean.id });
+    return clean;
+  }
+
+  function getClass(id) { return state.classes.find(c => c.id === id) || null; }
+
+  function deleteClass(id) {
+    const c = getClass(id);
+    if (!c) return;
+    Storage.pushTrash(state, 'class', c);
+    state.classes = state.classes.filter(x => x.id !== id);
+    state.tasks.forEach(t => { if (t.classId === id) t.classId = null; });
+    state.events.forEach(e => { if (e.classId === id) e.classId = null; });
+    update(s => s, { type: 'class-deleted', id });
+  }
+
+  function classProgress(c) {
+    const tasks = state.tasks.filter(t => t.classId === c.id);
+    if (!tasks.length) return 0;
+    return Math.round((tasks.filter(t => t.status === 'completed' || t.submission === 'submitted').length / tasks.length) * 100);
+  }
+
+  /* ================= Events ================= */
+
+  function saveEvent(fields) {
+    const clean = Storage.normalizeEvent(fields);
+    if (!clean) return null;
+    const existing = state.events.find(e => e.id === clean.id);
+    if (existing) Object.assign(existing, clean);
+    else state.events.push(clean);
+    update(s => s, { type: 'event-saved', id: clean.id });
+    return clean;
+  }
+
+  function getEvent(id) { return state.events.find(e => e.id === id) || null; }
+
+  function deleteEvent(id) {
+    const e = getEvent(id);
+    if (!e) return;
+    Storage.pushTrash(state, 'event', e);
+    state.events = state.events.filter(x => x.id !== id);
+    update(s => s, { type: 'event-deleted', id });
+  }
+
+  /* ================= Work sessions ================= */
+
+  function toggleSession(taskId, sessionId) {
+    const t = getTask(taskId);
+    if (!t) return;
+    const s = t.sessions.find(x => x.id === sessionId);
+    if (!s) return;
+    s.done = !s.done;
+    if (s.done && !t.actualMin) t.actualMin = t.sessions.filter(x => x.done).reduce((sum, x) => sum + x.durationMin, 0);
+    t.updatedAt = new Date().toISOString();
+    update(s2 => s2, { type: 'session-toggled' });
+  }
+
+  function addSession(taskId, session) {
+    const t = getTask(taskId);
+    if (!t) return;
+    const clean = Storage.normalizeSession(session);
+    if (!clean) return;
+    t.sessions.push(clean);
+    t.updatedAt = new Date().toISOString();
+    update(s2 => s2, { type: 'session-added' });
+  }
+
+  function removeSession(taskId, sessionId) {
+    const t = getTask(taskId);
+    if (!t) return;
+    t.sessions = t.sessions.filter(x => x.id !== sessionId);
+    t.updatedAt = new Date().toISOString();
+    update(s2 => s2, { type: 'session-removed' });
+  }
+
   /* ================= Notes ================= */
 
   function saveNote(fields) {
@@ -326,6 +410,9 @@
     init, get, subscribe, update, persist, logActivity,
     saveTask, getTask, toggleTask, setTaskStatus, deleteTask, duplicateTask, toggleSubtask,
     saveCategory, deleteCategory,
+    saveClass, getClass, deleteClass, classProgress,
+    saveEvent, getEvent, deleteEvent,
+    toggleSession, addSession, removeSession,
     saveProject, getProject, deleteProject, toggleMilestone, projectProgress,
     saveGoal, getGoal, deleteGoal, toggleGoalMilestone, goalProgress,
     saveNote, deleteNote,

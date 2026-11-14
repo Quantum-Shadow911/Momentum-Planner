@@ -37,39 +37,76 @@
       const d = Utils.addDays(gridStart, i);
       const inMonth = d.slice(0, 7) === first.slice(0, 7);
       const items = Priority.allOn(state, d);
-      const hasDeadline = items.some(t => t.status !== 'completed' && (t.priority === 'urgent' || Priority.isOverdue(t, d)));
+      const evts = Priority.eventsOn(state, d);
+      const open = items.filter(t => t.status !== 'completed');
+      const hasOverdue = d < today && open.length > 0;
+      const hasUrgent = open.some(t => t.priority === 'urgent' || Priority.isAssessment(t));
       const cell = document.createElement('div');
-      cell.className = 'cal-cell' + (inMonth ? '' : ' other-month') + (d === today ? ' today-cell' : '') + (hasDeadline ? ' has-deadline' : '');
+      cell.className = 'cal-cell' + (inMonth ? '' : ' other-month') + (d === today ? ' today-cell' : '')
+        + (hasOverdue ? ' has-overdue' : hasUrgent ? ' has-deadline' : '');
       cell.innerHTML = `<div class="cal-day-num">${Number(d.slice(8, 10))}</div><div class="cal-events"></div>`;
       const evHost = cell.querySelector('.cal-events');
-      items.slice(0, 3).forEach(t => {
-        const cat = UI.catOf(t);
-        const ev = document.createElement('div');
-        ev.className = 'cal-ev' + (t.status === 'completed' ? ' ev-done' : '');
-        ev.style.borderLeftColor = cat ? cat.color : 'var(--accent)';
-        ev.innerHTML = `${t.time ? `<span class="ev-time">${H(Utils.fmtTime(t.time))}</span> ` : ''}${H(t.title)}`;
-        ev.addEventListener('click', e => { e.stopPropagation(); UI.openTaskViewer(t.id); });
-        evHost.appendChild(ev);
+      const entries = [
+        ...evts.slice(0, 2).map(e => ({ kind: 'event', e })),
+        ...items.slice(0, 3).map(t => ({ kind: 'task', t }))
+      ].slice(0, 4);
+      entries.forEach(en => {
+        if (en.kind === 'event') {
+          const e = en.e;
+          const ev = document.createElement('div');
+          ev.className = 'cal-ev cal-ev-event';
+          ev.style.borderLeftColor = e.color;
+          ev.innerHTML = `${e.time ? `<span class="ev-time">${H(Utils.fmtTime(e.time))}</span> ` : ''}${H(e.icon)} ${H(e.title)}`;
+          ev.addEventListener('click', ev2 => { ev2.stopPropagation(); App.go('activities'); });
+          evHost.appendChild(ev);
+        } else {
+          const t = en.t;
+          const cat = UI.catOf(t) || UI.classOf(t);
+          const ev = document.createElement('div');
+          ev.className = 'cal-ev' + (t.status === 'completed' ? ' ev-done' : '');
+          ev.style.borderLeftColor = cat ? cat.color : 'var(--accent)';
+          ev.innerHTML = `${t.time ? `<span class="ev-time">${H(Utils.fmtTime(t.time))}</span> ` : ''}${H(t.title)}`;
+          ev.addEventListener('click', e2 => { e2.stopPropagation(); UI.openTaskViewer(t.id); });
+          evHost.appendChild(ev);
+        }
       });
-      if (items.length > 3) {
+      const total = evts.length + items.length;
+      if (total > 4) {
         const more = document.createElement('button');
         more.className = 'cal-more';
-        more.textContent = `+${items.length - 3} more`;
-        more.addEventListener('click', e => { e.stopPropagation(); dayDialog(d, items); });
+        more.textContent = `+${total - 4} more`;
+        more.addEventListener('click', e => { e.stopPropagation(); dayDialog(d); });
         evHost.appendChild(more);
       }
-      cell.addEventListener('click', () => dayDialog(d, items));
+      cell.addEventListener('click', () => dayDialog(d));
       grid.appendChild(cell);
     }
   }
 
-  function dayDialog(d, items) {
+  function dayDialog(d) {
+    const state = Store.get();
+    const items = Priority.allOn(state, d);
+    const evts = Priority.eventsOn(state, d);
+    const sessions = Priority.sessionsOn(state, d);
     const wrap = document.createElement('div');
     wrap.innerHTML = `
+      <div id="dayEvents"></div>
       <div class="task-list" id="dayList"></div>
       <button class="btn btn-primary btn-block" id="dayAdd" style="margin-top:12px">＋ Add task on ${H(Utils.fmtDate(d))}</button>`;
+    const evHost = wrap.querySelector('#dayEvents');
+    if (evts.length) {
+      evts.forEach(e => {
+        const row = document.createElement('div');
+        row.className = 'task-item';
+        row.style.borderLeft = `3px solid ${e.color}`;
+        row.innerHTML = `
+          <div class="task-main"><div class="task-title">${H(e.icon)} ${H(e.title)}</div>
+          <div class="task-meta"><span class="meta-txt">⭐ Event</span>${e.time ? `<span class="meta-txt">${H(Utils.fmtTime(e.time))}${e.endTime ? '–' + H(Utils.fmtTime(e.endTime)) : ''}</span>` : ''}${e.location ? `<span class="meta-txt">📍 ${H(e.location)}</span>` : ''}</div></div>`;
+        evHost.appendChild(row);
+      });
+    }
     const list = wrap.querySelector('#dayList');
-    if (!items.length) list.innerHTML = `<div class="empty"><span class="empty-icon">🗓️</span>Nothing scheduled on this day.</div>`;
+    if (!items.length && !evts.length && !sessions.length) list.innerHTML = `<div class="empty"><span class="empty-icon">🗓️</span>Nothing scheduled on this day.</div>`;
     items.forEach(t => list.appendChild(UI.taskItem(t)));
     wrap.querySelector('#dayAdd').addEventListener('click', () => { UI.closeModal(); UI.openTaskEditor(null, { dueDate: d }); });
     UI.openModal({ title: Utils.fmtDate(d, { long: true }), body: wrap, large: true, buttons: [{ label: 'Close', onClick: () => UI.closeModal() }] });

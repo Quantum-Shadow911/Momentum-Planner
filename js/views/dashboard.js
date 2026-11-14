@@ -1,37 +1,43 @@
-/* Momentum — Dashboard view: today at a glance, recommended next task, deadlines */
+/* Momentum — Dashboard: school-first overview of everything that needs attention */
 (function (global) {
   'use strict';
 
   function render(host) {
     const state = Store.get();
-    const st = Priority.stats(state);
     const now = new Date();
     const today = Utils.todayStr();
+    const st = Priority.stats(state);
+    const sch = Priority.schoolStats(state);
     const name = state.settings.userName ? ', ' + state.settings.userName : '';
 
     const reco = Priority.recommended(state);
     const todays = Priority.allOn(state, today);
     const overdue = Priority.overdueTasks(state);
-    const upcoming = Priority.upcoming(state, 7).filter(t => t.dueDate !== today);
-    const inProgress = state.tasks.filter(t => t.status === 'in-progress' && t.status !== 'completed');
+    const dueSoon = Priority.upcoming(state, 7).filter(t => t.dueDate !== today);
+    const assessments = Priority.upcomingAssessments(state, 14);
+    const sessionsToday = Priority.sessionsOn(state, today);
+    const eventsWeek = Priority.upcomingEvents(state, 7);
+    const recentlyDone = state.tasks.filter(t => t.status === 'completed' && t.completedAt)
+      .sort((a, b) => b.completedAt.localeCompare(a.completedAt)).slice(0, 5);
 
     host.innerHTML = `
       <div class="dash-hero">
         <div>
           <h1>${Utils.greeting(now.getHours())}${H(name)} 👋</h1>
-          <div class="date-line">${Utils.fmtDate(today, { long: true })} · ${st.open ? st.open + ' open task' + (st.open === 1 ? '' : 's') : 'all caught up!'}</div>
+          <div class="date-line">${Utils.fmtDate(today, { long: true })} · Your school planning overview</div>
         </div>
         <div class="quick-add">
-          <input class="input" id="dashQuickInput" placeholder="Quick add a task for today… (Enter)">
+          <input class="input" id="dashQuickTitle" placeholder="Quick add… (Enter) · clear the date to unschedule">
+          <input class="input" id="dashQuickDate" type="date" value="${today}" style="flex:0 0 140px" title="Due date — clear for no date">
           <button class="btn btn-primary" id="dashQuickBtn">＋ Add</button>
         </div>
       </div>
 
       <div class="grid grid-4" style="margin-bottom:16px">
         <div class="stat"><span class="stat-label">Due today</span><span class="stat-value tone-amber">${st.dueToday}</span><span class="stat-sub">${todays.filter(t => t.status === 'completed').length} done of ${todays.length} scheduled</span></div>
+        <div class="stat"><span class="stat-label">Assignments due soon</span><span class="stat-value tone-accent">${sch.dueSoon}</span><span class="stat-sub">next 7 days</span></div>
+        <div class="stat"><span class="stat-label">Upcoming assessments</span><span class="stat-value ${assessments.length ? 'tone-red' : 'tone-green'}">${sch.assessments}</span><span class="stat-sub">tests & quizzes · 14 days</span></div>
         <div class="stat"><span class="stat-label">Overdue</span><span class="stat-value ${st.overdue ? 'tone-red' : 'tone-green'}">${st.overdue}</span><span class="stat-sub">${st.overdue ? 'needs attention' : 'nothing overdue'}</span></div>
-        <div class="stat"><span class="stat-label">Completed today</span><span class="stat-value tone-green">${st.completedToday}</span><span class="stat-sub">${st.completedWeek} this week</span></div>
-        <div class="stat"><span class="stat-label">Overall progress</span><span class="stat-value tone-accent">${st.completionPct}%</span><span class="stat-sub">${st.completed} of ${st.total} tasks · ${Utils.fmtDuration(st.remainingMin)} left</span></div>
       </div>
 
       <div class="reco-card" style="margin-bottom:16px">
@@ -52,25 +58,40 @@
       </div>
 
       <div class="grid grid-2" style="margin-bottom:16px">
-        <div class="card">
-          <div class="card-title"><span>📋 Today's schedule</span><button class="link-btn" data-go="daily">Open daily planner →</button></div>
-          <div class="today-col" id="dashToday"></div>
-        </div>
         <div class="stack">
+          <div class="card">
+            <div class="card-title"><span>📋 Today's priorities</span><button class="link-btn" data-go="daily">Daily planner →</button></div>
+            <div class="today-col" id="dashToday"></div>
+          </div>
           ${overdue.length ? `
           <div class="card" style="border-color:var(--red)">
             <div class="card-title"><span style="color:var(--red)">⚠ Overdue (${overdue.length})</span></div>
             <div class="today-col" id="dashOverdue"></div>
           </div>` : ''}
-          ${inProgress.length ? `
           <div class="card">
-            <div class="card-title"><span>◐ In progress</span></div>
-            <div class="today-col" id="dashProgress"></div>
-          </div>` : ''}
+            <div class="card-title"><span>🧠 Today's planned study sessions (${sch.sessionsTodayDone}/${sessionsToday.length} done)</span></div>
+            <div id="dashSessions"></div>
+          </div>
+        </div>
+        <div class="stack">
           <div class="card">
             <div class="card-title"><span>📅 Upcoming deadlines</span><button class="link-btn" data-go="agenda">Full agenda →</button></div>
             <div class="today-col" id="dashUpcoming"></div>
           </div>
+          ${assessments.length ? `
+          <div class="card">
+            <div class="card-title"><span>📄 Tests & quizzes ahead</span><button class="link-btn" data-go="classes">My classes →</button></div>
+            <div class="today-col" id="dashTests"></div>
+          </div>` : ''}
+          <div class="card">
+            <div class="card-title"><span>⭐ Extracurricular schedule</span><button class="link-btn" data-go="activities">All events →</button></div>
+            <div class="today-col" id="dashEvents"></div>
+          </div>
+          ${recentlyDone.length ? `
+          <div class="card">
+            <div class="card-title"><span>✅ Recently completed</span></div>
+            <div class="today-col" id="dashDone"></div>
+          </div>` : ''}
         </div>
       </div>
 
@@ -80,14 +101,16 @@
       </div>
     `;
 
-    /* wire quick add */
-    const qi = host.querySelector('#dashQuickInput');
+    /* quick add with clearable date */
+    const qi = host.querySelector('#dashQuickTitle');
+    const qd = host.querySelector('#dashQuickDate');
     const doQuick = () => {
       const v = qi.value.trim();
       if (!v) { qi.focus(); return; }
-      const saved = Store.saveTask({ title: v, dueDate: today, reminders: [state.settings.reminderDefault] });
-      UI.toast('success', 'Task added', saved.title);
+      const saved = Store.saveTask({ title: v, dueDate: qd.value || null, reminders: [state.settings.reminderDefault] });
+      UI.toast('success', 'Task added', saved.title + (saved.dueDate ? ` · due ${Utils.fmtDateSmart(saved.dueDate)}` : ' · unscheduled'));
       qi.value = '';
+      qd.value = today;
       qi.focus();
     };
     host.querySelector('#dashQuickBtn').addEventListener('click', doQuick);
@@ -101,68 +124,117 @@
       });
     }
 
-    const todayHost = host.querySelector('#dashToday');
-    if (!todays.length) {
-      todayHost.innerHTML = `<div class="empty"><span class="empty-icon">🌤️</span>Nothing scheduled for today.<br>Use quick add above to plan your day.</div>`;
+    fillList(host.querySelector('#dashToday'), todays.length ? todays : null,
+      'Nothing scheduled for today.<br>Use quick add above to plan your day.');
+    fillList(host.querySelector('#dashOverdue'), overdue.slice(0, 5));
+    fillList(host.querySelector('#dashUpcoming'), dueSoon.length ? dueSoon.slice(0, 8) : null,
+      'No deadlines in the next 7 days.');
+    fillList(host.querySelector('#dashTests'), assessments.slice(0, 5));
+    fillList(host.querySelector('#dashDone'), recentlyDone);
+
+    /* sessions today */
+    const sesHost = host.querySelector('#dashSessions');
+    if (!sessionsToday.length) {
+      sesHost.innerHTML = `<div class="empty"><span class="empty-icon">🧠</span>No study sessions planned for today.<br>Open an assignment and “Plan a session”.</div>`;
     } else {
-      todays.forEach(t => todayHost.appendChild(UI.taskItem(t)));
-    }
-
-    const odHost = host.querySelector('#dashOverdue');
-    if (odHost) overdue.slice(0, 5).forEach(t => odHost.appendChild(UI.taskItem(t)));
-
-    const prHost = host.querySelector('#dashProgress');
-    if (prHost) inProgress.slice(0, 4).forEach(t => prHost.appendChild(UI.taskItem(t)));
-
-    const upHost = host.querySelector('#dashUpcoming');
-    if (!upcoming.length) {
-      upHost.innerHTML = `<div class="empty"><span class="empty-icon">🎈</span>No deadlines in the next 7 days.</div>`;
-    } else {
-      upcoming.slice(0, 8).forEach(t => {
+      sessionsToday.forEach(({ session: s, task: t }) => {
+        const cls = UI.classOf(t);
         const row = document.createElement('div');
-        row.className = 'task-item';
+        row.className = 'task-item' + (s.done ? ' done' : '');
         row.innerHTML = `
+          <button class="task-check ${s.done ? 'checked' : ''}" aria-label="Toggle session">✓</button>
           <div class="task-main">
-            <div class="task-title">${H(t.title)}</div>
-            <div class="task-meta">${UI.dueBadge(t)} ${UI.catBadge(t)}</div>
+            <div class="task-title" style="${s.done ? 'text-decoration:line-through;color:var(--text-3)' : ''}">${H(t.title)}</div>
+            <div class="task-meta">
+              ${s.time ? `<span class="meta-txt">🕐 ${H(Utils.fmtTime(s.time))}</span>` : ''}
+              <span class="meta-txt">⏱ ${H(Utils.fmtDuration(s.durationMin))}</span>
+              ${s.objective ? `<span class="meta-txt">🎯 ${H(s.objective)}</span>` : ''}
+              ${cls ? `<span class="badge badge-cat"><span class="dot" style="background:${H(cls.color)}"></span>${H(cls.icon)} ${H(cls.name)}</span>` : ''}
+              ${t.dueDate ? `<span class="meta-txt">due ${H(Utils.fmtDateSmart(t.dueDate))}</span>` : ''}
+            </div>
           </div>`;
+        row.querySelector('.task-check').addEventListener('click', () => Store.toggleSession(t.id, s.id));
         row.querySelector('.task-main').addEventListener('click', () => UI.openTaskViewer(t.id));
-        upHost.appendChild(row);
+        sesHost.appendChild(row);
       });
     }
 
-    /* next 5 days mini columns */
+    /* events this week */
+    const evHost = host.querySelector('#dashEvents');
+    if (!eventsWeek.length) {
+      evHost.innerHTML = `<div class="empty"><span class="empty-icon">⭐</span>No activities this week.</div>`;
+    } else {
+      eventsWeek.slice(0, 6).forEach(e => {
+        const row = document.createElement('div');
+        row.className = 'task-item';
+        row.style.borderLeft = `3px solid ${e.color}`;
+        row.innerHTML = `
+          <div class="task-main">
+            <div class="task-title">${H(e.icon)} ${H(e.title)}</div>
+            <div class="task-meta">
+              <span class="meta-txt">📅 ${H(Utils.fmtDateSmart(e.date))}${e.time ? ' · ' + H(Utils.fmtTime(e.time)) : ''}</span>
+              ${e.location ? `<span class="meta-txt">📍 ${H(e.location)}</span>` : ''}
+            </div>
+          </div>`;
+        row.querySelector('.task-main').addEventListener('click', () => App.go('activities'));
+        evHost.appendChild(row);
+      });
+    }
+
+    /* next 4 days with workload warnings */
     const nextHost = host.querySelector('#dashNextDays');
+    const limit = state.settings.dailyLoadLimit || 180;
     for (let i = 1; i <= 4; i++) {
       const d = Utils.addDays(today, i);
       const items = Priority.allOn(state, d);
+      const evts = Priority.eventsOn(state, d);
+      const load = Priority.workloadOn(state, d);
       const col = document.createElement('div');
-      col.className = 'week-col' + (i === 1 ? ' today-col-hl' : '');
+      col.className = 'week-col';
       col.innerHTML = `
-        <div class="week-col-head"><span class="dow">${Utils.DOW_SHORT[Utils.parseDate(d).getDay()]}</span><span class="dnum">${Utils.fmtDate(d).replace(', ' + Utils.parseDate(d).getFullYear(), '')}</span></div>
+        <div class="week-col-head">
+          <span class="dow">${Utils.DOW_SHORT[Utils.parseDate(d).getDay()]}${i === 1 ? ' · tomorrow' : ''}</span>
+          <span class="dnum">${Utils.fmtDate(d).replace(', ' + Utils.parseDate(d).getFullYear(), '')}</span>
+          ${load.total >= limit ? `<span class="badge badge-overdue" title="Heavy day: ${Utils.fmtDuration(load.total)} planned">⚖ ${Utils.fmtDuration(load.total)} — heavy</span>` : load.total ? `<span class="badge badge-cat">⚖ ${Utils.fmtDuration(load.total)}</span>` : ''}
+        </div>
         <div class="week-col-body"></div>`;
-      const body = col.querySelector('.week-col-body');
-      if (!items.length) body.innerHTML = `<div class="muted small" style="text-align:center;padding:8px 0">—</div>`;
-      items.slice(0, 4).forEach(t => {
+      const bodyEl = col.querySelector('.week-col-body');
+      if (!items.length && !evts.length) bodyEl.innerHTML = `<div class="muted small" style="text-align:center;padding:8px 0">—</div>`;
+      evts.slice(0, 2).forEach(e => {
+        const mini = document.createElement('div');
+        mini.className = 'mini-task';
+        mini.style.borderLeftColor = e.color;
+        mini.innerHTML = `<div class="mt-title">${H(e.icon)} ${H(e.title)}</div><div class="mt-meta">${e.time ? H(Utils.fmtTime(e.time)) : 'event'}</div>`;
+        mini.addEventListener('click', () => App.go('activities'));
+        bodyEl.appendChild(mini);
+      });
+      items.slice(0, 3).forEach(t => {
         const mini = document.createElement('div');
         mini.className = 'mini-task' + (t.status === 'completed' ? ' done' : '');
-        const cat = UI.catOf(t);
+        const cat = UI.catOf(t) || UI.classOf(t);
         mini.style.borderLeftColor = cat ? cat.color : 'var(--accent)';
         mini.innerHTML = `<div class="mt-title">${t.time ? H(Utils.fmtTime(t.time)) + ' · ' : ''}${H(t.title)}</div>`;
         mini.addEventListener('click', () => UI.openTaskViewer(t.id));
-        body.appendChild(mini);
+        bodyEl.appendChild(mini);
       });
-      if (items.length > 4) {
+      const extra = evts.length + items.length - 5;
+      if (extra > 0) {
         const more = document.createElement('div');
         more.className = 'muted small';
         more.style.padding = '2px 4px';
-        more.textContent = `+${items.length - 4} more`;
-        body.appendChild(more);
+        more.textContent = `+${extra} more`;
+        bodyEl.appendChild(more);
       }
       nextHost.appendChild(col);
     }
 
     host.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => App.go(b.dataset.go)));
+  }
+
+  function fillList(el, items, emptyHtml) {
+    if (!el) return;
+    if (!items) { el.innerHTML = `<div class="empty"><span class="empty-icon">🌤️</span>${emptyHtml || 'Nothing here.'}</div>`; return; }
+    items.forEach(t => el.appendChild(UI.taskItem(t)));
   }
 
   global.Views = global.Views || {};

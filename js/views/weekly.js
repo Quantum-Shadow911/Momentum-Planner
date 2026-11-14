@@ -16,7 +16,7 @@
 
     host.innerHTML = `
       <div class="page-head">
-        <div><h2>Weekly Planner</h2><div class="sub">${Utils.fmtDate(weekStart)} – ${Utils.fmtDate(weekEnd)} · ${weekTasks.length} tasks, ${doneCount} done</div></div>
+        <div><h2>Weekly Planner</h2><div class="sub">${Utils.fmtDate(weekStart)} – ${Utils.fmtDate(weekEnd)} · ${weekTasks.length} tasks, ${doneCount} done · ⚖ = planned workload per day (warns over ${Utils.fmtDuration(state.settings.dailyLoadLimit || 180)})</div></div>
         <div class="row">
           <button class="btn" id="wToday">This week</button>
           <button class="icon-btn" id="wPrev" aria-label="Previous week">←</button>
@@ -31,14 +31,22 @@
     host.querySelector('#wToday').addEventListener('click', () => { weekStart = Utils.startOfWeek(Utils.todayStr(), state.settings.weekStartsOn); render(host); });
 
     const grid = host.querySelector('#weekGrid');
+    const limit = state.settings.dailyLoadLimit || 180;
     days.forEach(d => {
       const items = Priority.allOn(state, d);
+      const evts = Priority.eventsOn(state, d);
+      const sessions = Priority.sessionsOn(state, d);
+      const load = Priority.workloadOn(state, d);
       const col = document.createElement('div');
       col.className = 'week-col' + (d === today ? ' today-col-hl' : '');
       col.innerHTML = `
         <div class="week-col-head">
           <span class="dow">${Utils.DOW_SHORT[Utils.parseDate(d).getDay()]}${d === today ? ' · today' : ''}</span>
           <span class="dnum">${Utils.fmtDate(d).replace(', ' + Utils.parseDate(d).getFullYear(), '')}</span>
+          <div class="row-wrap" style="margin-top:4px">
+            ${load.total ? `<span class="badge ${load.total >= limit ? 'badge-overdue' : 'badge-cat'}" title="Tasks due: ${Utils.fmtDuration(load.taskLoad)} · sessions: ${Utils.fmtDuration(load.sessionLoad)}">⚖ ${Utils.fmtDuration(load.total)}${load.total >= limit ? ' — heavy!' : ''}</span>` : ''}
+            ${evts.length ? `<span class="badge" style="background:var(--green-soft);color:var(--green)">⭐ ${evts.length}</span>` : ''}
+          </div>
         </div>
         <div class="week-col-body"></div>
         <button class="btn btn-sm btn-ghost btn-block" style="margin-top:8px" data-add="${d}">＋ Add task</button>`;
@@ -57,9 +65,36 @@
         UI.toast('success', 'Moved', `“${t.title}” → ${Utils.fmtDate(d)}`);
       });
 
-      if (!items.length) {
+      if (!items.length && !evts.length && !sessions.length) {
         body.innerHTML = `<div class="muted small" style="text-align:center;padding:10px 0">Nothing planned</div>`;
       }
+      evts.forEach(e => {
+        const mini = document.createElement('div');
+        mini.className = 'mini-task';
+        mini.style.borderLeftColor = e.color;
+        mini.style.background = 'var(--green-soft)';
+        mini.innerHTML = `
+          <div class="mt-title">${H(e.icon)} ${H(e.title)}</div>
+          <div class="mt-meta">⭐ event${e.time ? ' · ' + H(Utils.fmtTime(e.time)) : ''}${e.location ? ' · ' + H(e.location) : ''}</div>`;
+        mini.addEventListener('click', () => App.go('activities'));
+        body.appendChild(mini);
+      });
+      sessions.forEach(({ session: s, task: t }) => {
+        const mini = document.createElement('div');
+        mini.className = 'mini-task' + (s.done ? ' done' : '');
+        const cls = UI.classOf(t);
+        mini.style.borderLeftColor = cls ? cls.color : 'var(--purple)';
+        mini.style.borderLeftStyle = 'dashed';
+        mini.innerHTML = `
+          <div class="mt-title">${s.time ? H(Utils.fmtTime(s.time)) + ' · ' : ''}🧠 ${H(t.title)}</div>
+          <div class="mt-meta">
+            <span>${H(Utils.fmtDuration(s.durationMin))}</span>
+            ${s.objective ? `<span>${H(s.objective.slice(0, 30))}</span>` : ''}
+            ${cls ? `<span>${H(cls.icon)}</span>` : ''}
+          </div>`;
+        mini.addEventListener('click', () => UI.openTaskViewer(t.id));
+        body.appendChild(mini);
+      });
       items.forEach(t => {
         const mini = document.createElement('div');
         mini.className = 'mini-task' + (t.status === 'completed' ? ' done' : '');

@@ -48,6 +48,19 @@ describe('storage validation', () => {
     expect(res.data.tasks[0].dueDate).toBe('2025-01-15');
   });
 
+  it('rejects impossible calendar dates on import', () => {
+    const state = S.normalize({
+      tasks: [
+        { title: 'Bad day', dueDate: '2025-02-30' },
+        { title: 'Bad month', dueDate: '2025-13-05' },
+        { title: 'Good day', dueDate: '2025-02-28' }
+      ]
+    });
+    expect(state.tasks[0].dueDate).toBe(null);
+    expect(state.tasks[1].dueDate).toBe(null);
+    expect(state.tasks[2].dueDate).toBe('2025-02-28');
+  });
+
   it('importJson rejects garbage with a friendly error', () => {
     expect(S.importJson('not json{').error).toBeTruthy();
     expect(S.importJson('{"foo": 1}').error).toBeTruthy();
@@ -105,6 +118,20 @@ describe('store actions & recurrence', () => {
     expect(Store.get().tasks.find(x => x.id !== t.id).dueDate).toBe('2025-06-09');
   });
 
+  it('weekday recurrence respects its interval (regression)', () => {
+    freshStore();
+    const t = Store.saveTask({ title: 'Every 2 weekdays', dueDate: '2025-06-06', recurrence: { type: 'weekdays', interval: 2 } });
+    Store.toggleTask(t.id);
+    expect(Store.get().tasks.find(x => x.id !== t.id).dueDate).toBe('2025-06-10');
+  });
+
+  it('biweekly recurrence respects its interval (regression)', () => {
+    freshStore();
+    const t = Store.saveTask({ title: 'Every 4 weeks', dueDate: '2025-06-06', recurrence: { type: 'biweekly', interval: 2 } });
+    Store.toggleTask(t.id);
+    expect(Store.get().tasks.find(x => x.id !== t.id).dueDate).toBe('2025-07-04');
+  });
+
   it('deleteTask moves to trash and cleans dependencies; trash restores', () => {
     freshStore();
     const a = Store.saveTask({ title: 'First' });
@@ -116,6 +143,67 @@ describe('store actions & recurrence', () => {
     Store.restoreTrash(Store.get().trash[0].id);
     expect(Store.get().tasks.length).toBe(2);
     expect(Store.get().trash.length).toBe(0);
+  });
+
+  it('trash restoration preserves the original item content (regression)', () => {
+    freshStore();
+    const t = Store.saveTask({
+      title: 'Precious assignment',
+      description: 'Detailed instructions',
+      dueDate: '2025-06-10',
+      time: '14:00',
+      priority: 'high',
+      tags: ['important'],
+      classId: null,
+      assignmentType: 'homework',
+      subtasks: [{ title: 'Step one', done: true }],
+      sessions: [{ date: '2025-06-09', time: '16:00', durationMin: 45, objective: 'Draft it' }]
+    });
+    Store.deleteTask(t.id);
+    const res = Store.restoreTrash(Store.get().trash[0].id);
+    expect(res).toBeTruthy();
+    expect(res.type).toBe('task');
+    const restored = Store.getTask(t.id);
+    expect(restored).toBeTruthy();
+    expect(restored.title).toBe('Precious assignment');
+    expect(restored.description).toBe('Detailed instructions');
+    expect(restored.dueDate).toBe('2025-06-10');
+    expect(restored.time).toBe('14:00');
+    expect(restored.priority).toBe('high');
+    expect(restored.tags).toEqual(['important']);
+    expect(restored.assignmentType).toBe('homework');
+    expect(restored.subtasks.length).toBe(1);
+    expect(restored.subtasks[0].done).toBe(true);
+    expect(restored.sessions.length).toBe(1);
+    expect(restored.sessions[0].objective).toBe('Draft it');
+  });
+
+  it('trash restoration works for projects, goals, notes, categories, classes and events', () => {
+    freshStore();
+    const p = Store.saveProject({ name: 'Proj', milestones: [{ title: 'M1', done: true }] });
+    const g = Store.saveGoal({ name: 'Goal' });
+    const n = Store.saveNote({ title: 'Note', body: 'text' });
+    const c = Store.saveCategory({ name: 'Cat' });
+    const cls = Store.saveClass({ name: 'Math', teacher: 'X', slots: [{ day: 1, start: '08:30', end: '09:30' }] });
+    const e = Store.saveEvent({ title: 'Practice', date: '2025-06-10', time: '18:00' });
+    [p, g, n, c, cls, e].forEach((item, i) => {
+      const type = ['project', 'goal', 'note', 'category', 'class', 'event'][i];
+      if (type === 'project') Store.deleteProject(item.id);
+      else if (type === 'goal') Store.deleteGoal(item.id);
+      else if (type === 'note') Store.deleteNote(item.id);
+      else if (type === 'category') Store.deleteCategory(item.id);
+      else if (type === 'class') Store.deleteClass(item.id);
+      else Store.deleteEvent(item.id);
+    });
+    expect(Store.get().trash.length).toBe(6);
+    while (Store.get().trash.length) Store.restoreTrash(Store.get().trash[0].id);
+    expect(Store.getProject(p.id).name).toBe('Proj');
+    expect(Store.getProject(p.id).milestones[0].done).toBe(true);
+    expect(Store.getGoal(g.id).name).toBe('Goal');
+    expect(Store.get().notes.find(x => x.id === n.id).body).toBe('text');
+    expect(Store.get().categories.find(x => x.id === c.id).name).toBe('Cat');
+    expect(Store.getClass(cls.id).slots.length).toBe(1);
+    expect(Store.getEvent(e.id).date).toBe('2025-06-10');
   });
 
   it('setTaskStatus drives kanban transitions and completion logging', () => {

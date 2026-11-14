@@ -103,6 +103,33 @@
     return Store.get().categories.find(c => c.id === task.categoryId) || null;
   }
 
+  function classOf(task) {
+    return Store.get().classes.find(c => c.id === task.classId) || null;
+  }
+
+  const TYPE_LABELS = { general: '', homework: '📝 Homework', essay: '✍️ Essay', project: '📊 Project', lab: '🧪 Lab', reading: '📖 Reading', revision: '🔄 Revision', 'test-prep': '🧠 Test prep', quiz: '❓ Quiz', test: '📄 Test' };
+  const SUBMISSION_LABELS = { 'not-started': '', working: '◐ working', ready: '✋ ready to submit', submitted: '📮 submitted' };
+
+  function classBadge(task) {
+    const c = classOf(task);
+    if (!c) return '';
+    return `<span class="badge badge-cat"><span class="dot" style="background:${H(c.color)}"></span>${H(c.icon)} ${H(c.name)}</span>`;
+  }
+
+  function typeBadge(task) {
+    const label = TYPE_LABELS[task.assignmentType] || '';
+    if (!label) return '';
+    const cls = Priority.isAssessment(task) ? 'badge-today' : 'badge-cat';
+    return `<span class="badge ${cls}">${label}</span>`;
+  }
+
+  function submissionBadge(task) {
+    const label = SUBMISSION_LABELS[task.submission] || '';
+    if (!label) return '';
+    const cls = task.submission === 'submitted' ? 'badge-done' : task.submission === 'ready' ? 'badge-today' : '';
+    return `<span class="badge ${cls}">${label}</span>`;
+  }
+
   function prioBadge(task) {
     const p = task.priority;
     const labels = { urgent: '🔴 Urgent', high: '🟠 High', medium: '🔵 Medium', low: '⚪ Low' };
@@ -162,10 +189,14 @@
           ${prioBadge(task)}
           ${statusBadge(task)}
           ${dueBadge(task)}
+          ${classBadge(task)}
+          ${typeBadge(task)}
+          ${submissionBadge(task)}
           ${catBadge(task)}
           ${tagBadges(task)}
           ${task.estimateMin ? `<span class="meta-txt">⏱ ~${H(Utils.fmtDuration(task.estimateMin))}</span>` : ''}
           ${subTotal ? `<span class="meta-txt">☑ ${subDone}/${subTotal}</span>` : ''}
+          ${task.sessions && task.sessions.length ? `<span class="meta-txt">🗓 ${task.sessions.filter(s => s.done).length}/${task.sessions.length} sessions</span>` : ''}
           ${task.recurrence.type !== 'none' ? `<span class="meta-txt">🔁 ${H(recurrenceLabel(task.recurrence))}</span>` : ''}
           ${task.projectId ? `<span class="meta-txt">📁 ${H((Store.getProject(task.projectId) || {}).name || '')}</span>` : ''}
           ${blocked ? `<span class="badge badge-overdue" title="Blocked by: ${H(blockNames.join(', '))}">⛔ blocked</span>` : ''}
@@ -224,6 +255,20 @@
         ${t.recurrence.type !== 'none' ? `<span class="badge">🔁 ${H(recurrenceLabel(t.recurrence))}</span>` : ''}
       </div>
       ${t.description ? `<p style="margin:0 0 6px;color:var(--text-2);white-space:pre-wrap">${H(t.description)}</p>` : ''}
+      ${t.sessions && t.sessions.length ? `
+        <div class="detail-section">
+          <h4>Planned work sessions (${t.sessions.filter(s => s.done).length}/${t.sessions.length} done)</h4>
+          <div class="task-list">
+            ${t.sessions.slice().sort((a, b) => a.date.localeCompare(b.date)).map(s => `
+              <div class="task-item" style="padding:7px 10px">
+                <button class="task-check ${s.done ? 'checked' : ''}" data-ses="${H(s.id)}">✓</button>
+                <div class="task-main">
+                  <div class="task-title" style="font-size:13.5px;${s.done ? 'text-decoration:line-through;color:var(--text-3)' : ''}">${H(Utils.fmtDateSmart(s.date))}${s.time ? ' · ' + H(Utils.fmtTime(s.time)) : ''} · ${H(Utils.fmtDuration(s.durationMin))}</div>
+                  ${s.objective ? `<div class="muted small">${H(s.objective)}</div>` : ''}
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>` : ''}
       ${t.subtasks.length ? `
         <div class="detail-section">
           <h4>Checklist (${t.subtasks.filter(s => s.done).length}/${t.subtasks.length})</h4>
@@ -238,6 +283,9 @@
       <div class="detail-section">
         <h4>Details</h4>
         <dl class="kv">
+          ${classOf(t) ? `<dt>Class</dt><dd>${H(classOf(t).icon)} ${H(classOf(t).name)}</dd>` : ''}
+          ${t.assignmentType !== 'general' ? `<dt>Type</dt><dd>${H(TYPE_LABELS[t.assignmentType] || t.assignmentType)}</dd>` : ''}
+          ${t.submission !== 'not-started' ? `<dt>Submission</dt><dd>${H(SUBMISSION_LABELS[t.submission] || t.submission)}</dd>` : ''}
           ${t.startDate ? `<dt>Start date</dt><dd>${H(Utils.fmtDate(t.startDate, { long: true }))}</dd>` : ''}
           ${t.dueDate ? `<dt>Due date</dt><dd>${H(Utils.fmtDate(t.dueDate, { long: true }))}${t.time ? ' at ' + H(Utils.fmtTime(t.time)) : ''}</dd>` : ''}
           ${t.durationMin ? `<dt>Scheduled time</dt><dd>${H(Utils.fmtDuration(t.durationMin))}</dd>` : ''}
@@ -253,6 +301,9 @@
     `;
     body.querySelectorAll('[data-sub]').forEach(btn => {
       btn.addEventListener('click', () => Store.toggleSubtask(t.id, btn.dataset.sub));
+    });
+    body.querySelectorAll('[data-ses]').forEach(btn => {
+      btn.addEventListener('click', () => Store.toggleSession(t.id, btn.dataset.ses));
     });
     const refreshSubs = Store.subscribe(() => {
       if (!document.body.contains(body)) { refreshSubs(); return; }
@@ -292,8 +343,12 @@
     const t = taskId ? Store.getTask(taskId) : null;
     const p = presets || {};
     const base = t || {
-      title: '', description: '', startDate: null, dueDate: p.dueDate || null, time: p.time || null,
-      durationMin: 0, priority: 'medium', categoryId: p.categoryId || (state.categories[0] && state.categories[0].id) || null,
+      title: p.title || '', description: '', startDate: null, dueDate: p.dueDate || null, time: p.time || null,
+      durationMin: 0, priority: p.priority || 'medium', categoryId: p.categoryId || (state.categories[0] && state.categories[0].id) || null,
+      classId: p.classId || null,
+      assignmentType: p.assignmentType || 'general',
+      submission: 'not-started',
+      sessions: [],
       tags: [], estimateMin: 0, actualMin: 0, subtasks: [], recurrence: { type: 'none', interval: 1 },
       reminders: [], links: [], notes: '', status: p.status || 'not-started', dependsOn: [], projectId: p.projectId || null
     };
@@ -327,6 +382,27 @@
           <select class="select" name="categoryId">
             <option value="">None</option>
             ${state.categories.map(c => `<option value="${H(c.id)}" ${base.categoryId === c.id ? 'selected' : ''}>${H(c.icon)} ${H(c.name)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="field-row-3">
+        <div class="field">
+          <label>Class</label>
+          <select class="select" name="classId">
+            <option value="">Not school-related</option>
+            ${state.classes.map(c => `<option value="${H(c.id)}" ${base.classId === c.id ? 'selected' : ''}>${H(c.icon)} ${H(c.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Assignment type</label>
+          <select class="select" name="assignmentType">
+            ${Storage.ASSIGNMENT_TYPES.map(at => `<option value="${at}" ${base.assignmentType === at ? 'selected' : ''}>${{ general: 'General task', homework: 'Homework', essay: 'Essay', project: 'Project', lab: 'Lab', reading: 'Reading', revision: 'Revision', 'test-prep': 'Test preparation', quiz: 'Quiz', test: 'Test' }[at]}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Submission</label>
+          <select class="select" name="submission">
+            ${Storage.SUBMISSION_STATES.map(ss => `<option value="${ss}" ${base.submission === ss ? 'selected' : ''}>${{ 'not-started': 'Not started', working: 'Working on it', ready: 'Ready to submit', submitted: 'Submitted' }[ss]}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -402,6 +478,11 @@
         <div id="subtasksEditor"></div>
         <button class="btn btn-sm btn-ghost" id="addSubtask" type="button">＋ Add step</button>
       </div>
+      <div class="field">
+        <label>Planned work sessions <span class="muted">(when you'll work on it — shown in Daily/Weekly planners)</span></label>
+        <div id="sessionsEditor"></div>
+        <button class="btn btn-sm btn-ghost" id="addSession" type="button">＋ Plan a session</button>
+      </div>
       ${depOptions.length ? `
       <div class="field">
         <label>Depends on <span class="muted">(blocked until these are done)</span></label>
@@ -448,6 +529,22 @@
     (base.links || []).forEach(addLinkRow);
     body.querySelector('#addLink').addEventListener('click', () => addLinkRow(null));
 
+    const sesEd = body.querySelector('#sessionsEditor');
+    function addSessionRow(ses) {
+      const row = document.createElement('div');
+      row.className = 'subtask-editor-row session-row';
+      row.innerHTML = `
+        <input class="input" style="flex:0 0 130px" type="date" value="${H(ses ? ses.date : '')}">
+        <input class="input ses-time" style="flex:0 0 96px" type="time" value="${H(ses && ses.time || '')}">
+        <input class="input ses-dur" style="flex:0 0 74px" type="number" min="5" step="5" placeholder="min" value="${ses ? ses.durationMin : 45}">
+        <input class="input ses-obj" placeholder="Objective (e.g. research, draft…)" value="${H(ses ? ses.objective : '')}">
+        <button class="icon-btn" type="button" aria-label="Remove session">✕</button>`;
+      row.querySelector('button').addEventListener('click', () => row.remove());
+      sesEd.appendChild(row);
+    }
+    (base.sessions || []).forEach(addSessionRow);
+    body.querySelector('#addSession').addEventListener('click', () => addSessionRow(null));
+
     function collect() {
       const f = name => body.querySelector(`[name="${name}"]`);
       const err = body.querySelector('#taskFormError');
@@ -485,6 +582,17 @@
           title: row.querySelector('.input').value.trim(),
           done: row.querySelector('.sub-done').checked
         })).filter(s => s.title),
+        sessions: Array.from(sesEd.querySelectorAll('.session-row')).map(row => ({
+          id: Utils.uid('ses'),
+          date: row.querySelector('input[type="date"]').value || null,
+          time: row.querySelector('.ses-time').value || null,
+          durationMin: Number(row.querySelector('.ses-dur').value) || 30,
+          objective: row.querySelector('.ses-obj').value.trim(),
+          done: false
+        })).filter(s => s.date),
+        classId: f('classId').value || null,
+        assignmentType: f('assignmentType').value,
+        submission: f('submission').value,
         dependsOn: Array.from(body.querySelectorAll('#depChoices input:checked')).map(i => i.value),
         notes: f('notes').value
       };
@@ -523,8 +631,8 @@
         </div>
         <div class="field-row">
           <div class="field">
-            <label>Due date</label>
-            <input class="input" type="date" id="qaDue" value="${Utils.todayStr()}">
+            <label>Due date <span class="muted">(leave empty to unschedule)</span></label>
+            <input class="input" type="date" id="qaDue" value="">
           </div>
           <div class="field">
             <label>Priority</label>
@@ -536,7 +644,7 @@
             </select>
           </div>
         </div>
-        <p class="muted small" style="margin:0">You can add details, subtasks and reminders afterwards.</p>
+        <p class="muted small" style="margin:0">No date = it goes to your Agenda under “No deadline” until you schedule it.</p>
         <div class="form-error" id="qaError"></div>`,
       buttons: [
         { label: 'Cancel', class: 'btn-ghost', onClick: () => closeModal() },
@@ -555,7 +663,17 @@
             closeModal();
           }
         },
-        { label: 'More options…', class: 'btn-ghost', onClick: () => { const title = document.getElementById('qaTitle').value.trim(); closeModal(); openTaskEditor(null, { title: title || undefined }); return false; } }
+        {
+          label: 'More options…', class: 'btn-ghost',
+          onClick: () => {
+            const title = document.getElementById('qaTitle').value.trim();
+            const due = document.getElementById('qaDue').value || null;
+            const priority = document.getElementById('qaPriority').value;
+            closeModal();
+            openTaskEditor(null, { title, dueDate: due, priority });
+            return false;
+          }
+        }
       ]
     });
   }
@@ -626,6 +744,7 @@
   const UI = {
     toast, openModal, closeModal, modalIsOpen, confirmDialog,
     prioBadge, dueBadge, catBadge, tagBadges, statusBadge, catOf,
+    classOf, classBadge, typeBadge, submissionBadge, TYPE_LABELS, SUBMISSION_LABELS,
     taskItem, openTaskViewer, openTaskEditor, quickAdd, openCategoryEditor,
     recurrenceLabel, reminderLabel, COLOR_SWATCHES, ICON_CHOICES
   };

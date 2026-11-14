@@ -147,6 +147,72 @@
     return (PRIO_WEIGHT[b.priority] || 0) - (PRIO_WEIGHT[a.priority] || 0);
   }
 
+  /* ---- School-aware selectors ---- */
+
+  const ASSESSMENT_TYPES = ['quiz', 'test', 'test-prep'];
+
+  function isAssessment(task) {
+    return ASSESSMENT_TYPES.includes(task.assignmentType);
+  }
+
+  function sessionsOn(state, dateStr) {
+    const out = [];
+    state.tasks.forEach(t => {
+      (t.sessions || []).forEach(s => {
+        if (s.date === dateStr && t.status !== 'completed') out.push({ session: s, task: t });
+      });
+    });
+    return out.sort((a, b) => {
+      const at = a.session.time ? Utils.minutesOf(a.session.time) : 9999;
+      const bt = b.session.time ? Utils.minutesOf(b.session.time) : 9999;
+      return at - bt;
+    });
+  }
+
+  function eventsOn(state, dateStr) {
+    return state.events.filter(e => e.date === dateStr)
+      .sort((a, b) => (Utils.minutesOf(a.time) || 9999) - (Utils.minutesOf(b.time) || 9999));
+  }
+
+  function upcomingEvents(state, days, today) {
+    today = today || Utils.todayStr();
+    const end = Utils.addDays(today, days == null ? 7 : days);
+    return state.events.filter(e => e.date >= today && e.date <= end).sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  function upcomingAssessments(state, days, today) {
+    today = today || Utils.todayStr();
+    const end = Utils.addDays(today, days == null ? 14 : days);
+    return state.tasks
+      .filter(t => t.status !== 'completed' && isAssessment(t) && t.dueDate && t.dueDate >= today && t.dueDate <= end)
+      .sort(byDue);
+  }
+
+  /* Estimated workload in minutes scheduled ON a given date:
+     open tasks due that day (crunch risk) + planned work sessions that day. */
+  function workloadOn(state, dateStr) {
+    const taskLoad = state.tasks
+      .filter(t => t.status !== 'completed' && t.dueDate === dateStr)
+      .reduce((sum, t) => sum + (t.estimateMin || t.durationMin || 0), 0);
+    const sessionLoad = sessionsOn(state, dateStr)
+      .reduce((sum, e) => sum + e.session.durationMin, 0);
+    return { taskLoad, sessionLoad, total: taskLoad + sessionLoad };
+  }
+
+  function schoolStats(state, todayArg) {
+    const today = todayArg || Utils.todayStr();
+    const soon = upcoming(state, 7, today);
+    const sessionsToday = sessionsOn(state, today);
+    return {
+      dueSoon: soon.length,
+      assessments: upcomingAssessments(state, 14, today).length,
+      sessionsTodayTotal: sessionsToday.length,
+      sessionsTodayDone: sessionsToday.filter(e => e.session.done).length,
+      eventsThisWeek: upcomingEvents(state, 7, today).length,
+      submittedOpen: state.tasks.filter(t => t.status !== 'completed' && t.submission === 'submitted').length
+    };
+  }
+
   function stats(state, todayArg) {
     const today = todayArg || Utils.todayStr();
     const weekStart = Utils.startOfWeek(today, state.settings.weekStartsOn);
@@ -173,7 +239,9 @@
 
   const Priority = {
     PRIO_WEIGHT, score, reason, recommended, isBlocked, blockingNames,
-    isOverdue, isDueToday, overdueTasks, dueOn, allOn, upcoming, byDue, byTimeThenPrio, stats
+    isOverdue, isDueToday, overdueTasks, dueOn, allOn, upcoming, byDue, byTimeThenPrio, stats,
+    isAssessment, ASSESSMENT_TYPES, sessionsOn, eventsOn, upcomingEvents, upcomingAssessments,
+    workloadOn, schoolStats
   };
 
   global.Priority = Priority;

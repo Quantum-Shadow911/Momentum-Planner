@@ -35,7 +35,7 @@
       body.appendChild(list);
     }
 
-    if (!groups.length && !undated.length && !overdue.length) {
+    if (!groups.length && !undated.length && !overdue.length && !state.events.length) {
       body.innerHTML = `<div class="empty" style="margin-top:20px"><span class="empty-icon">🎉</span>Your agenda is completely clear.<br>Add a task to get started.</div>`;
       return;
     }
@@ -46,6 +46,17 @@
       body.appendChild(groupHeader(Utils.fmtDate(g.date, { long: true }), rel, n === 0 ? 'var(--amber)' : null));
       const list = document.createElement('div');
       list.className = 'task-list';
+      Priority.eventsOn(state, g.date).forEach(e => {
+        const row = document.createElement('div');
+        row.className = 'task-item';
+        row.style.borderLeft = `3px solid ${e.color}`;
+        row.innerHTML = `
+          <div class="task-main"><div class="task-title">${H(e.icon)} ${H(e.title)}</div>
+          <div class="task-meta"><span class="badge" style="background:var(--green-soft);color:var(--green)">⭐ Event</span>
+          ${e.time ? `<span class="meta-txt">${H(Utils.fmtTime(e.time))}</span>` : ''}${e.location ? `<span class="meta-txt">📍 ${H(e.location)}</span>` : ''}</div></div>`;
+        row.querySelector('.task-main').addEventListener('click', () => App.go('activities'));
+        list.appendChild(row);
+      });
       g.items.forEach(t => list.appendChild(UI.taskItem(t)));
       body.appendChild(list);
     });

@@ -29,6 +29,12 @@
             </select>
           </div>
           <div class="settings-row">
+            <div><div class="s-label">Daily workload warning</div><div class="s-desc">Planners show a ⚖ warning when planned work (task estimates + study sessions) exceeds this many minutes per day.</div></div>
+            <select class="select" id="setLoadLimit" style="width:auto">
+              ${[120, 180, 240, 300, 480].map(m => `<option value="${m}" ${(s.dailyLoadLimit || 180) === m ? 'selected' : ''}>${UI.reminderLabel(m).replace(' before', '')}</option>`).join('')}
+            </select>
+          </div>
+          <div class="settings-row">
             <div><div class="s-label">Default reminder</div><div class="s-desc">Applied to new tasks. Individual reminders are set per task.</div></div>
             <select class="select" id="setReminder" style="width:auto">
               ${[0, 5, 15, 30, 60, 120, 1440].map(m => `<option value="${m}" ${s.reminderDefault === m ? 'selected' : ''}>${UI.reminderLabel(m)}</option>`).join('')}
@@ -91,6 +97,7 @@
     host.querySelector('#setTheme').addEventListener('change', e => App.setTheme(e.target.checked ? 'dark' : 'light'));
     host.querySelector('#setWeekStart').addEventListener('change', e => Store.updateSettings({ weekStartsOn: Number(e.target.value) }));
     host.querySelector('#setReminder').addEventListener('change', e => Store.updateSettings({ reminderDefault: Number(e.target.value) }));
+    host.querySelector('#setLoadLimit').addEventListener('change', e => Store.updateSettings({ dailyLoadLimit: Number(e.target.value) }));
 
     /* notifications */
     const notifAction = host.querySelector('#notifAction');

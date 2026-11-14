@@ -2,7 +2,7 @@
 (function (global) {
   'use strict';
 
-  const filters = { q: '', prio: '', cat: '', status: 'open', tag: '', sort: 'due' };
+  const filters = { q: '', prio: '', cat: '', cls: '', type: '', status: 'open', tag: '', sort: 'due' };
   let showHistory = false;
 
   function render(host) {
@@ -20,6 +20,7 @@
           <option value="open" ${filters.status === 'open' ? 'selected' : ''}>Open tasks</option>
           <option value="today" ${filters.status === 'today' ? 'selected' : ''}>Due today</option>
           <option value="overdue" ${filters.status === 'overdue' ? 'selected' : ''}>Overdue</option>
+          <option value="undated" ${filters.status === 'undated' ? 'selected' : ''}>Inbox (no date)</option>
           <option value="not-started" ${filters.status === 'not-started' ? 'selected' : ''}>Not started</option>
           <option value="in-progress" ${filters.status === 'in-progress' ? 'selected' : ''}>In progress</option>
           <option value="waiting" ${filters.status === 'waiting' ? 'selected' : ''}>Waiting</option>
@@ -33,6 +34,14 @@
         <select class="select" id="fCat">
           <option value="">All categories</option>
           ${state.categories.map(c => `<option value="${H(c.id)}" ${filters.cat === c.id ? 'selected' : ''}>${H(c.icon)} ${H(c.name)}</option>`).join('')}
+        </select>
+        <select class="select" id="fCls">
+          <option value="">All classes</option>
+          ${state.classes.map(c => `<option value="${H(c.id)}" ${filters.cls === c.id ? 'selected' : ''}>${H(c.icon)} ${H(c.name)}</option>`).join('')}
+        </select>
+        <select class="select" id="fType">
+          <option value="">All types</option>
+          ${Storage.ASSIGNMENT_TYPES.map(t => `<option value="${t}" ${filters.type === t ? 'selected' : ''}>${UI.TYPE_LABELS[t] || t}</option>`).join('')}
         </select>
         ${allTags.length ? `<select class="select" id="fTag"><option value="">All tags</option>${allTags.map(t => `<option value="${H(t)}" ${filters.tag === t ? 'selected' : ''}>#${H(t)}</option>`).join('')}</select>` : ''}
         <select class="select" id="fSort">
@@ -58,8 +67,9 @@
     };
     host.querySelector('#fQ').addEventListener('input', Utils.debounce(() => { filters.q = host.querySelector('#fQ').value; renderList(); }, 150));
     bind('#fStatus', 'status'); bind('#fPrio', 'prio'); bind('#fCat', 'cat'); bind('#fTag', 'tag'); bind('#fSort', 'sort');
+    bind('#fCls', 'cls'); bind('#fType', 'type');
     host.querySelector('#clearFilters').addEventListener('click', () => {
-      Object.assign(filters, { q: '', prio: '', cat: '', status: 'open', tag: '' });
+      Object.assign(filters, { q: '', prio: '', cat: '', cls: '', type: '', status: 'open', tag: '' });
       render(host);
     });
     host.querySelector('#toggleHistory').addEventListener('click', () => { showHistory = !showHistory; render(host); });
@@ -74,8 +84,11 @@
         if (['not-started', 'in-progress', 'waiting'].includes(filters.status) && t.status !== filters.status) return false;
         if (filters.status === 'today' && !Priority.isDueToday(t)) return false;
         if (filters.status === 'overdue' && !Priority.isOverdue(t)) return false;
+        if (filters.status === 'undated' && t.dueDate) return false;
         if (filters.prio && t.priority !== filters.prio) return false;
         if (filters.cat && t.categoryId !== filters.cat) return false;
+        if (filters.cls && t.classId !== filters.cls) return false;
+        if (filters.type && t.assignmentType !== filters.type) return false;
         if (filters.tag && !t.tags.includes(filters.tag)) return false;
         if (q) {
           const hay = (t.title + ' ' + t.description + ' ' + t.notes + ' ' + t.tags.join(' ')).toLowerCase();
@@ -116,6 +129,10 @@
     renderHistory();
   }
 
+  function preset(patch) {
+    Object.assign(filters, patch);
+  }
+
   global.Views = global.Views || {};
-  global.Views.tasks = { title: 'Tasks', render };
+  global.Views.tasks = { title: 'Assignments', render, preset };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -11,11 +11,16 @@
   const STATUSES = ['not-started', 'in-progress', 'waiting', 'completed'];
   const RECURRENCE_TYPES = ['none', 'daily', 'weekdays', 'weekly', 'biweekly', 'monthly'];
 
+  const ASSIGNMENT_TYPES = ['general', 'homework', 'essay', 'project', 'lab', 'reading', 'revision', 'test-prep', 'quiz', 'test'];
+  const SUBMISSION_STATES = ['not-started', 'working', 'ready', 'submitted'];
+
   function emptyState() {
     return {
       version: 1,
       tasks: [],
       categories: [],
+      classes: [],
+      events: [],
       projects: [],
       goals: [],
       notes: [],
@@ -28,6 +33,7 @@
         browserNotifications: false,
         reminderDefault: 30,
         hideCompleted: false,
+        dailyLoadLimit: 180,
         seeded: false
       }
     };
@@ -37,7 +43,10 @@
   function num(v, fallback) { const n = Number(v); return isFinite(n) ? n : (fallback != null ? fallback : 0); }
   function bool(v, fallback) { return typeof v === 'boolean' ? v : (fallback != null ? fallback : false); }
   function arr(v) { return Array.isArray(v) ? v : []; }
-  function dateOrNull(v) { return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null; }
+  function dateOrNull(v) {
+    if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+    return Utils.parseDate(v) ? v : null;
+  }
   function timeOrNull(v) { return typeof v === 'string' && /^([01]?\d|2[0-3]):[0-5]\d$/.test(v) ? v : null; }
 
   function normalizeTask(t) {
@@ -64,6 +73,10 @@
         done: bool(s.done)
       })).slice(0, 50),
       recurrence: normalizeRecurrence(t.recurrence),
+      classId: str(t.classId) || null,
+      assignmentType: ASSIGNMENT_TYPES.includes(t.assignmentType) ? t.assignmentType : 'general',
+      submission: SUBMISSION_STATES.includes(t.submission) ? t.submission : (t.status === 'completed' ? 'submitted' : 'not-started'),
+      sessions: arr(t.sessions).map(normalizeSession).filter(Boolean).slice(0, 40),
       reminders: arr(t.reminders).map(n => num(n, null)).filter(n => n != null && n >= 0 && n <= 10080).slice(0, 5),
       links: arr(t.links).map(l => ({ label: str(l.label).slice(0, 120), url: str(l.url).slice(0, 1000) })).filter(l => l.url).slice(0, 10),
       notes: str(t.notes).slice(0, 5000),
@@ -81,6 +94,59 @@
     if (!r || typeof r !== 'object') return { type: 'none', interval: 1 };
     const type = RECURRENCE_TYPES.includes(r.type) ? r.type : 'none';
     return { type, interval: Utils.clamp(num(r.interval, 1), 1, 52) };
+  }
+
+  function normalizeSession(s) {
+    if (!s || typeof s !== 'object') return null;
+    const date = dateOrNull(s.date);
+    if (!date) return null;
+    return {
+      id: str(s.id) || Utils.uid('ses'),
+      date,
+      time: timeOrNull(s.time),
+      durationMin: Utils.clamp(num(s.durationMin, 30), 5, 600),
+      objective: str(s.objective).slice(0, 300),
+      done: bool(s.done)
+    };
+  }
+
+  function normalizeClass(c) {
+    if (!c || typeof c !== 'object') return null;
+    const name = str(c.name).trim();
+    if (!name) return null;
+    return {
+      id: str(c.id) || Utils.uid('cls'),
+      name: name.slice(0, 80),
+      teacher: str(c.teacher).slice(0, 80),
+      room: str(c.room).slice(0, 40),
+      color: /^#[0-9a-fA-F]{6}$/.test(c.color || '') ? c.color : '#3b82f6',
+      icon: str(c.icon).slice(0, 8) || '📘',
+      slots: arr(c.slots).map(s => {
+        const day = num(s.day, -1);
+        if (day < 0 || day > 6) return null;
+        return { day: Math.round(day), start: timeOrNull(s.start) || '09:00', end: timeOrNull(s.end) || '10:00' };
+      }).filter(Boolean).slice(0, 14)
+    };
+  }
+
+  function normalizeEvent(e) {
+    if (!e || typeof e !== 'object') return null;
+    const title = str(e.title).trim();
+    const date = dateOrNull(e.date);
+    if (!title || !date) return null;
+    return {
+      id: str(e.id) || Utils.uid('evt'),
+      title: title.slice(0, 200),
+      date,
+      time: timeOrNull(e.time),
+      endTime: timeOrNull(e.endTime),
+      location: str(e.location).slice(0, 120),
+      icon: str(e.icon).slice(0, 8) || '⭐',
+      color: /^#[0-9a-fA-F]{6}$/.test(e.color || '') ? e.color : '#10b981',
+      categoryId: str(e.categoryId) || null,
+      notes: str(e.notes).slice(0, 3000),
+      createdAt: e.createdAt ? str(e.createdAt) : new Date().toISOString()
+    };
   }
 
   function normalizeCategory(c) {
@@ -193,14 +259,26 @@
     });
     const projIds = new Set(arr(data.projects).map(p => p && p.id).filter(Boolean));
     const taskIds = new Set(tasks.map(t => t.id));
+    const classIds = new Set();
+    const classes = arr(data.classes).map(normalizeClass).filter(Boolean).filter(c => {
+      if (classIds.has(c.id)) return false;
+      classIds.add(c.id);
+      return true;
+    });
+    const evCatIds = new Set(arr(data.events).map(e => e && e.categoryId).filter(Boolean));
     return {
       version: 1,
       tasks: tasks.map(t => Object.assign(t, {
         categoryId: t.categoryId && catIds.has(t.categoryId) ? t.categoryId : null,
         projectId: t.projectId && projIds.has(t.projectId) ? t.projectId : null,
+        classId: t.classId && classIds.has(t.classId) ? t.classId : null,
         dependsOn: t.dependsOn.filter(id => taskIds.has(id) && id !== t.id)
       })),
       categories,
+      classes,
+      events: arr(data.events).map(normalizeEvent).filter(Boolean).map(e => Object.assign(e, {
+        categoryId: e.categoryId && catIds.has(e.categoryId) && evCatIds.has(e.categoryId) ? e.categoryId : null
+      })),
       projects: arr(data.projects).map(p => normalizeProject(p)).filter(Boolean).map(p => Object.assign(p, {
         categoryId: p.categoryId && catIds.has(p.categoryId) ? p.categoryId : null
       })),
@@ -298,15 +376,22 @@
     if (idx === -1) return null;
     const entry = state.trash[idx];
     state.trash.splice(idx, 1);
-    const item = normalize(JSON.parse(JSON.stringify(entry.item)));
-    switch (entry.type) {
-      case 'task': state.tasks.push(item); break;
-      case 'project': state.projects.push(item); break;
-      case 'goal': state.goals.push(item); break;
-      case 'note': state.notes.push(item); break;
-      case 'category': state.categories.push(item); break;
-      default: return null;
-    }
+    const raw = JSON.parse(JSON.stringify(entry.item));
+    const restorers = {
+      task: { list: 'tasks', fn: normalizeTask },
+      project: { list: 'projects', fn: normalizeProject },
+      goal: { list: 'goals', fn: normalizeGoal },
+      note: { list: 'notes', fn: normalizeNote },
+      category: { list: 'categories', fn: normalizeCategory },
+      class: { list: 'classes', fn: normalizeClass },
+      event: { list: 'events', fn: normalizeEvent }
+    };
+    const r = restorers[entry.type];
+    if (!r) return null;
+    const item = r.fn(raw);
+    if (!item) return null;
+    state[r.list] = state[r.list].filter(x => x.id !== item.id);
+    state[r.list].push(item);
     return { type: entry.type, item };
   }
 
@@ -331,8 +416,8 @@
   }
 
   const Storage = {
-    KEY, PRIORITIES, STATUSES, RECURRENCE_TYPES,
-    emptyState, normalize, normalizeTask, normalizeProject, normalizeGoal, normalizeNote, normalizeCategory,
+    KEY, PRIORITIES, STATUSES, RECURRENCE_TYPES, ASSIGNMENT_TYPES, SUBMISSION_STATES,
+    emptyState, normalize, normalizeTask, normalizeProject, normalizeGoal, normalizeNote, normalizeCategory, normalizeClass, normalizeEvent, normalizeSession,
     load, save, snapshot, listBackups, restoreBackup, pushTrash, restoreFromTrash, exportJson, importJson
   };
 

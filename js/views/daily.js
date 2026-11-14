@@ -15,11 +15,19 @@
     const looseSessions = sessions.filter(e => !e.session.time);
     const load = Priority.workloadOn(state, currentDate);
     const conflicts = Planner.conflictsOn(state, currentDate);
+    const dow = Utils.parseDate(currentDate).getDay();
+    const minsNow = new Date().getHours() * 60 + new Date().getMinutes();
+    const isToday = currentDate === Utils.todayStr();
+    const classesToday = state.classes
+      .map(c => ({ c, slot: (c.slots || []).find(x => x.day === dow) }))
+      .filter(x => x.slot)
+      .sort((a, b) => Utils.minutesOf(a.slot.start) - Utils.minutesOf(b.slot.start));
 
     host.innerHTML = `
       <div class="page-head">
         <div><h2>Daily Planner</h2><div class="sub">Drag tasks between hours to reschedule. Click a task for details.</div></div>
         <div class="row">
+          <button class="btn" id="dBalance" title="Move study sessions off overloaded days">⚖ Balance workload</button>
           <button class="btn" id="dToday">Today</button>
           <button class="icon-btn" id="dPrev" aria-label="Previous day">←</button>
           <button class="icon-btn" id="dNext" aria-label="Next day">→</button>
@@ -30,6 +38,11 @@
           ${load.total ? `<span class="badge ${load.total >= (state.settings.dailyLoadLimit || 180) ? 'badge-overdue' : 'badge-cat'}">⚖ ${Utils.fmtDuration(load.total)} planned</span>` : ''}
         </div>
       </div>
+      ${classesToday.length ? `<div class="card" style="padding:12px 18px;margin-bottom:14px;border-left:4px solid var(--accent)">
+        <div class="card-title" style="margin-bottom:8px"><span>🏫 Today's classes (${classesToday.length})</span>
+          <button class="link-btn" data-go="classes">My classes →</button></div>
+        <div class="row-wrap" id="dayClasses"></div>
+      </div>` : ''}
       ${conflicts.length ? `<div class="card" style="padding:10px 18px;margin-bottom:14px;border-left:4px solid var(--red)">
         <strong style="color:var(--red)">⚠ ${conflicts.length} scheduling conflict${conflicts.length > 1 ? 's' : ''}</strong>
         <div class="muted small" style="margin-top:4px">${conflicts.slice(0, 4).map(c =>
@@ -57,6 +70,29 @@
     host.querySelector('#dPrev').addEventListener('click', () => { currentDate = Utils.addDays(currentDate, -1); render(host); });
     host.querySelector('#dNext').addEventListener('click', () => { currentDate = Utils.addDays(currentDate, 1); render(host); });
     host.querySelector('#dToday').addEventListener('click', () => { currentDate = Utils.todayStr(); render(host); });
+    host.querySelector('#dBalance').addEventListener('click', () => {
+      UI.openSuggestionModal({
+        title: '⚖ Balance workload',
+        intro: `Days over your ${Utils.fmtDuration(state.settings.dailyLoadLimit || 180)} limit are listed below. Study sessions move to the lightest day that is still before the assignment's due date — school breaks are skipped. Nothing changes until you apply.`,
+        suggestions: Planner.suggestDistribution(Store.get()),
+        noneTitle: 'Workload looks good',
+        noneMsg: 'No day is over your workload limit — nothing needs moving.',
+        appliedTitle: 'Workload rebalanced'
+      });
+    });
+
+    const clsHost = host.querySelector('#dayClasses');
+    if (clsHost) {
+      classesToday.forEach(({ c, slot }) => {
+        const isNow = isToday && Utils.minutesOf(slot.start) <= minsNow && minsNow < Utils.minutesOf(slot.end);
+        const chip = document.createElement('span');
+        chip.className = 'chip' + (isNow ? ' chip-now' : '');
+        chip.innerHTML = `<strong>${H(c.icon)} ${H(c.name)}</strong>
+          <span class="muted small">${H(Utils.fmtTime(slot.start))}–${H(Utils.fmtTime(slot.end))}${c.room ? ' · ' + H(c.room) : ''}${isNow ? ' · <b>now</b>' : ''}</span>`;
+        chip.addEventListener('click', () => { Views.classes.selectClass(c.id); App.go('classes'); });
+        clsHost.appendChild(chip);
+      });
+    }
     host.querySelector('#addAnytime').addEventListener('click', () => UI.openTaskEditor(null, { dueDate: currentDate }));
 
     host.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => App.go(b.dataset.go)));

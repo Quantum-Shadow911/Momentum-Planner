@@ -69,7 +69,7 @@
       <div class="dash-grid">
         <div class="dash-side">
           <div class="card">
-            <div class="card-title"><span>🏫 My schedule</span><button class="link-btn" data-go="timetable">Timetable →</button></div>
+            <div class="card-title"><span>🏫 My schedule</span><button class="link-btn" data-go="daily">Daily planner →</button></div>
             <div id="dashPeriods"></div>
             <button class="link-btn" id="dashEditCls" style="margin-top:8px">✏️ Edit classes & periods</button>
           </div>
@@ -120,7 +120,7 @@
           <div class="mini-cal" id="miniCal"></div>
         </div>
         <div class="card">
-          <div class="card-title"><span>🗓 Next several days</span><button class="link-btn" data-go="weekly">Weekly planner →</button></div>
+          <div class="card-title"><span>🗓 Next several days</span><button class="link-btn" data-go="monthly">Full calendar →</button></div>
           <div class="grid grid-2" id="dashNextDays"></div>
         </div>
       </div>
@@ -296,7 +296,7 @@
         row.type = 'button';
         row.className = 'period-row' + (isNow ? ' now' : '');
         row.innerHTML = `
-          <span class="p-badge">${c.period ? 'P' + H(c.period) : '·'}</span>
+          <span class="p-badge">${c.period ? (/\d/.test(c.period) ? 'P' + H(c.period) : H(c.period)) : '·'}</span>
           <span class="p-icon">${H(c.icon)}</span>
           <span class="p-main">
             <span class="p-name">${H(c.name)}${isNow ? ' <span class="badge badge-today">now</span>' : ''}</span>

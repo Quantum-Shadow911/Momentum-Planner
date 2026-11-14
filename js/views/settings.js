@@ -36,7 +36,7 @@
           <div class="field"><label>Your name (used in the dashboard greeting)</label>
             <input class="input" id="setName" maxlength="60" value="${H(s.userName)}" placeholder="e.g. Alex"></div>
           <div class="settings-row">
-            <div><div class="s-label">Version</div><div class="s-desc">Momentum v${H(App.version)} — school-first edition with classes, study sessions, workload balancing, exams, timetable, templates, timer, attachments and breaks.</div></div>
+            <div><div class="s-label">Version</div><div class="s-desc">Momentum v${H(App.version)} — school-first edition with classes, study sessions, workload balancing, exams, templates, timer, attachments and breaks.</div></div>
             <span class="badge badge-done">Up to date</span>
           </div>
           <div class="settings-row">

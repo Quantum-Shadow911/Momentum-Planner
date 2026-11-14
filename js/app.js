@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.2.0-personal';
+  const APP_VERSION = '2.3.0-school-schedule';
 
   const NAV = [
     { section: 'Overview' },
@@ -15,9 +15,7 @@
     { id: 'tasks', icon: '✅', label: 'Assignments' },
     { id: 'exams', icon: '📄', label: 'Exams & Quizzes' },
     { id: 'daily', icon: '📅', label: 'Daily Planner' },
-    { id: 'weekly', icon: '🗓️', label: 'Weekly Planner' },
     { id: 'monthly', icon: '📆', label: 'Calendar' },
-    { id: 'timetable', icon: '🗓️', label: 'Timetable' },
     { id: 'agenda', icon: '📋', label: 'Agenda' },
     { section: 'Activities' },
     { id: 'activities', icon: '⭐', label: 'Activities & Events' },
@@ -236,11 +234,14 @@
     const weekdays = [1, 2, 3, 4, 5];
     const daily = (start, end) => weekdays.map(day => ({ day, start, end }));
     const classes = [
-      { id: 'cls-sci', name: 'Science', teacher: 'Mrs. Khichadia', period: '1', color: '#14b8a6', icon: '🧪', slots: daily('08:30', '09:20') },
-      { id: 'cls-pe', name: 'P.E.', teacher: 'Mrs. Pratt', period: '2', color: '#10b981', icon: '🏃', slots: daily('09:25', '10:15') },
-      { id: 'cls-strings', name: 'Strings Orchestra', teacher: 'Aaron Balot', period: '3', color: '#8b5cf6', icon: '🎻', slots: daily('10:20', '11:10') },
-      { id: 'cls-math', name: 'Math', teacher: 'Mr. Haun', period: '4', color: '#3b82f6', icon: '➗', slots: daily('11:15', '12:05') },
-      { id: 'cls-core', name: 'Core — Reading · Language Arts · Social Studies', teacher: 'Mrs. Kaplenko', period: '5–7', color: '#f59e0b', icon: '📖', slots: daily('12:45', '15:25') }
+      { id: 'cls-sci', name: 'Science 6', teacher: 'Mrs. Khichadia', room: 'C 207', period: '01', color: '#14b8a6', icon: '🧪', slots: daily('08:15', '09:01') },
+      { id: 'cls-pe', name: 'PE 6th', teacher: 'Mrs. Pratt', room: 'GYM', period: '02', color: '#10b981', icon: '🏃', slots: daily('09:01', '09:55') },
+      { id: 'cls-strings', name: 'Concert Orchestra', teacher: 'Mr. Balot', room: 'B 120', period: '03', color: '#8b5cf6', icon: '🎻', slots: daily('09:55', '10:41') },
+      { id: 'cls-math', name: 'Course 3 Math', teacher: 'Mr. Haun', room: 'E 121', period: '04', color: '#3b82f6', icon: '➗', slots: daily('10:41', '11:57') },
+      { id: 'cls-reading', name: 'Reading 6', teacher: 'Mrs. Kaplenko', room: 'C 102', period: '05', color: '#f59e0b', icon: '📖', slots: daily('11:57', '12:43') },
+      { id: 'cls-la', name: 'Language Arts 6', teacher: 'Mrs. Kaplenko', room: 'C 102', period: '06', color: '#f97316', icon: '✏️', slots: daily('12:43', '13:29') },
+      { id: 'cls-ss', name: 'Social Studies 6', teacher: 'Mrs. Kaplenko', room: 'C 102', period: '07', color: '#eab308', icon: '🌍', slots: daily('13:29', '14:15') },
+      { id: 'cls-advisory', name: 'Advisory', teacher: 'Mrs. Kaplenko', room: 'C 102', period: 'Adv Fri', color: '#64748b', icon: '🤝', slots: [{ day: 5, start: '14:15', end: '14:45' }] }
     ];
     classes.forEach(c => Store.saveClass(c));
 

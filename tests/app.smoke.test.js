@@ -41,10 +41,8 @@ await import('../js/views/dashboard.js');
 await import('../js/views/classes.js');
 await import('../js/views/activities.js');
 await import('../js/views/exams.js');
-await import('../js/views/timetable.js');
 await import('../js/views/tasks.js');
 await import('../js/views/daily.js');
-await import('../js/views/weekly.js');
 await import('../js/views/monthly.js');
 await import('../js/views/agenda.js');
 await import('../js/views/analytics.js');
@@ -67,13 +65,13 @@ describe('app boot', () => {
   it('boots with seeded sample data and renders the dashboard', () => {
     expect(Store.get().tasks.length).toBe(0);
     expect(Store.get().categories.length).toBe(9);
-    expect(Store.get().classes.length).toBe(5);
+    expect(Store.get().classes.length).toBe(8);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.2.0-personal');
-    expect(Store.get().settings.lastVersion).toBe('2.2.0-personal');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.3.0-school-schedule');
+    expect(Store.get().settings.lastVersion).toBe('2.3.0-school-schedule');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
-    expect(document.querySelectorAll('.nav-item').length).toBe(14);
+    expect(document.querySelectorAll('.nav-item').length).toBe(12);
     expect(document.getElementById('viewHost').innerHTML).toContain('Recommended next task');
     expect(document.getElementById('viewHost').innerHTML).toContain('To-do list — today');
     expect(document.getElementById('viewHost').innerHTML).toContain('appointments');
@@ -81,11 +79,11 @@ describe('app boot', () => {
 
   it('dashboard renders the school-portal layout: schedule panel, to-do, exams, dates, calendar', () => {
     expect(document.querySelector('.dash-grid')).toBeTruthy();
-    expect(document.querySelectorAll('#dashPeriods .period-row').length).toBe(5);
+    expect(document.querySelectorAll('#dashPeriods .period-row').length).toBe(8);
     expect(document.getElementById('dashPeriods').textContent).toContain('Mrs. Khichadia');
     expect(document.getElementById('dashPeriods').textContent).toContain('Mrs. Pratt');
     expect(document.getElementById('dashPeriods').textContent).toContain('Mrs. Kaplenko');
-    expect(document.getElementById('dashPeriods').textContent).toContain('Strings Orchestra');
+    expect(document.getElementById('dashPeriods').textContent).toContain('Concert Orchestra');
     expect(document.getElementById('dashToday')).toBeTruthy();
     expect(document.getElementById('dashTests')).toBeTruthy();
     expect(document.getElementById('dashUpcoming')).toBeTruthy();
@@ -99,7 +97,7 @@ describe('app boot', () => {
 });
 
 describe('all views render without errors', () => {
-  const viewIds = ['classes', 'activities', 'exams', 'timetable', 'daily', 'weekly', 'monthly', 'agenda', 'tasks', 'analytics', 'settings'];
+  const viewIds = ['classes', 'activities', 'exams', 'daily', 'monthly', 'agenda', 'tasks', 'analytics', 'settings'];
   viewIds.forEach(id => {
     it(`renders ${id}`, () => {
       expect(() => App.go(id)).not.toThrow();
@@ -194,8 +192,8 @@ describe('theme & interactions', () => {
     Store.saveTask({ title: 'Overloaded crunch', dueDate: Utils.addDays(today, 6), estimateMin: 270, sessions: [
       { date: today, durationMin: 90 }, { date: today, durationMin: 90 }, { date: today, durationMin: 90 }
     ] });
-    App.go('weekly');
-    document.getElementById('wBalance').click();
+    App.go('daily');
+    document.getElementById('dBalance').click();
     expect(document.getElementById('modalRoot').children.length).toBe(1);
     UI.closeModal();
   });
@@ -232,11 +230,6 @@ describe('theme & interactions', () => {
     expect(document.getElementById('exClassChips')).toBeTruthy();
   });
 
-  it('timetable renders class blocks for the seeded schedule', () => {
-    App.go('timetable');
-    expect(document.querySelectorAll('.tt-block').length).toBeGreaterThanOrEqual(5);
-  });
-
   it('dragging an assignment with sessions in the daily planner moves the session, not the deadline', () => {
     App.go('daily');
     const today = Utils.todayStr();
@@ -270,17 +263,6 @@ describe('theme & interactions', () => {
     addBtn.click();
     expect(UI.modalIsOpen()).toBe(false);
     expect(Store.getTask(exam.id).sessions.length).toBe(before + 1);
-  });
-
-  it('timetable renders proportional blocks and expands hours for early classes', () => {
-    Store.saveClass({ name: 'Zero period', color: '#8b5cf6', icon: '🌅', slots: [{ day: 3, start: '07:15', end: '08:05' }] });
-    App.go('timetable');
-    const grid = document.getElementById('ttGrid');
-    expect(grid).toBeTruthy();
-    expect(grid.textContent).toContain('7:00 AM');
-    const block = document.querySelector('.tt-block');
-    expect(block.style.top).toContain('%');
-    expect(Number.parseFloat(block.style.height)).toBeGreaterThan(50);
   });
 
   it('global search finds seeded tasks', () => {

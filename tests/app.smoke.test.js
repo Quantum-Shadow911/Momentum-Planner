@@ -69,8 +69,8 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(7);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.3.5-dates-nav');
-    expect(Store.get().settings.lastVersion).toBe('2.3.5-dates-nav');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.3.6-key-dates');
+    expect(Store.get().settings.lastVersion).toBe('2.3.6-key-dates');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(12);
     const navViews = [...document.querySelectorAll('.nav-item')].map(b => b.dataset.view);
@@ -148,7 +148,7 @@ describe('important dates page', () => {
     const ev = Store.saveEvent({ title: 'Dates page event', date: Utils.addDays(Utils.todayStr(), 2), time: '17:00' });
     const br = Store.saveBreak({ name: 'Dates page break', start: Utils.addDays(Utils.todayStr(), 20), end: Utils.addDays(Utils.todayStr(), 24) });
     App.go('dates');
-    expect(document.getElementById('topbarTitle').textContent).toBe('Important Dates');
+    expect(document.getElementById('topbarTitle').textContent).toBe('Important Dates/Calendar');
     expect(document.getElementById('datesCal')).toBeTruthy();
     expect(document.querySelectorAll('#datesCal .cal-cell').length).toBe(42);
     expect(document.querySelector('.nav-item[data-view="dates"]')).toBeTruthy();
@@ -161,6 +161,27 @@ describe('important dates page', () => {
     Store.deleteTask(q.id);
     Store.deleteEvent(ev.id);
     Store.deleteBreak(br.id);
+    App.go('dashboard');
+  });
+});
+
+describe('my important dates', () => {
+  it('adds, lists, edits and deletes custom important dates, kept separate from activities', async () => {
+    const kd = Store.saveEvent({ title: 'Picture day', kind: 'key-date', date: Utils.addDays(Utils.todayStr(), 4), time: '09:00' });
+    expect(kd.kind).toBe('key-date');
+    App.go('dates');
+    expect(document.getElementById('dtKeyDates').textContent).toContain('Picture day');
+    expect(document.getElementById('addKeyDate')).toBeTruthy();
+    App.go('activities');
+    expect(document.getElementById('eventsBody').textContent).not.toContain('Picture day');
+    App.go('dashboard');
+    expect(document.getElementById('dashUpcoming').textContent).toContain('Picture day');
+    expect(document.getElementById('dashEvents').textContent).not.toContain('Picture day');
+    const editor = Views.activities.openEventEditor(null, { kind: 'key-date' });
+    await new Promise(r => setTimeout(r, 0));
+    expect(document.getElementById('modalRoot').textContent).toContain('New important date');
+    UI.closeModal();
+    Store.deleteEvent(kd.id);
     App.go('dashboard');
   });
 });

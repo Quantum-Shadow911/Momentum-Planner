@@ -168,6 +168,7 @@
     if (!title || !date) return null;
     return {
       id: str(e.id) || Utils.uid('evt'),
+      kind: e.kind === 'key-date' ? 'key-date' : 'activity',
       title: title.slice(0, 200),
       date,
       time: timeOrNull(e.time),

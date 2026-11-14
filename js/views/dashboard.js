@@ -24,7 +24,8 @@
     const dueSoon = Priority.upcoming(state, 7).filter(t => t.dueDate !== today);
     const assessments = Priority.upcomingAssessments(state, 14);
     const sessionsToday = Priority.sessionsOn(state, today);
-    const eventsWeek = Priority.upcomingEvents(state, 7);
+    const eventsWeek = Priority.upcomingEvents(state, 7).filter(e => e.kind !== 'key-date');
+    const keyDatesWeek = Priority.upcomingEvents(state, 7).filter(e => e.kind === 'key-date');
     const recentlyDone = state.tasks.filter(t => t.status === 'completed' && t.completedAt)
       .sort((a, b) => b.completedAt.localeCompare(a.completedAt)).slice(0, 5);
 
@@ -159,8 +160,26 @@
     fillList(host.querySelector('#dashToday'), todays.length ? todays : null,
       'Nothing scheduled for today.<br>Use quick add above to plan your day.', '🌤️');
     fillList(host.querySelector('#dashOverdue'), overdue.slice(0, 5), null, '⚠️');
-    fillList(host.querySelector('#dashUpcoming'), dueSoon.length ? dueSoon.slice(0, 8) : null,
+    const upEl = host.querySelector('#dashUpcoming');
+    fillList(upEl, dueSoon.length ? dueSoon.slice(0, 8) : (keyDatesWeek.length ? [] : null),
       'No deadlines in the next 7 days.', '📌');
+    keyDatesWeek.slice(0, 4).forEach(e => {
+      const row = document.createElement('div');
+      row.className = 'task-item';
+      row.style.borderLeft = `3px solid ${e.color}`;
+      row.innerHTML = `
+        <div style="font-size:18px">${H(e.icon)}</div>
+        <div class="task-main">
+          <div class="task-title">${H(e.title)}</div>
+          <div class="task-meta">
+            <span class="badge" style="background:var(--accent-soft,#eef2ff);color:var(--accent)">📌 Important date</span>
+            <span class="meta-txt">📅 ${H(Utils.fmtDateSmart(e.date))}${e.time ? ' · ' + H(Utils.fmtTime(e.time)) : ''}</span>
+            ${H(Priority.recurrenceLabel(e))}
+          </div>
+        </div>`;
+      row.querySelector('.task-main').addEventListener('click', () => App.go('dates'));
+      upEl.appendChild(row);
+    });
     fillList(host.querySelector('#dashTests'), assessments.length ? assessments.slice(0, 5) : null,
       'No tests or quizzes in the next 14 days. 🎉', '📝');
     fillList(host.querySelector('#dashDone'), recentlyDone, null, '✅');

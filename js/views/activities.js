@@ -3,11 +3,14 @@
 (function (global) {
   'use strict';
 
+  function isActivity(e) { return e.kind !== 'key-date'; }
+
   function render(host) {
     const state = Store.get();
     const today = Utils.todayStr();
-    const upcoming = Priority.upcomingEvents(state, 30);
-    const past = state.events.filter(e => e.date < today).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
+    const upcoming = Priority.upcomingEvents(state, 30).filter(isActivity);
+    const pastAll = state.events.filter(e => e.date < today && isActivity(e));
+    const past = pastAll.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
 
     host.innerHTML = `
       <div class="page-head">
@@ -16,7 +19,7 @@
       </div>
       <div id="eventsBody"></div>
       ${past.length ? `<div class="detail-section" style="margin-top:24px">
-        <button class="link-btn" id="pastToggle">▸ Past events (${state.events.filter(e => e.date < today).length})</button>
+        <button class="link-btn" id="pastToggle">▸ Past events (${pastAll.length})</button>
         <div id="pastArea" style="margin-top:10px"></div></div>` : ''}
     `;
     host.querySelector('#newEvent').addEventListener('click', () => openEventEditor());
@@ -44,9 +47,9 @@
     if (pastToggle) {
       pastToggle.addEventListener('click', () => {
         const area = host.querySelector('#pastArea');
-        if (area.innerHTML) { area.innerHTML = ''; pastToggle.textContent = `▸ Past events (${state.events.filter(e => e.date < today).length})`; return; }
+        if (area.innerHTML) { area.innerHTML = ''; pastToggle.textContent = `▸ Past events (${pastAll.length})`; return; }
         past.forEach(e => area.appendChild(eventRow(e, host)));
-        pastToggle.textContent = `▾ Past events (${state.events.filter(e => e.date < today).length})`;
+        pastToggle.textContent = `▾ Past events (${pastAll.length})`;
       });
     }
   }
@@ -80,19 +83,21 @@
     return row;
   }
 
-  function openEventEditor(eventId) {
+  function openEventEditor(eventId, opts) {
     const state = Store.get();
     const e = eventId ? Store.getEvent(eventId) : null;
+    const kind = e ? (e.kind || 'activity') : ((opts && opts.kind) === 'key-date' ? 'key-date' : 'activity');
+    const isKey = kind === 'key-date';
     const base = e || {
       title: '', date: Utils.todayStr(), time: null, endTime: null, location: '',
-      icon: '⭐', color: '#10b981', categoryId: (state.categories[0] && state.categories[0].id) || null, notes: ''
+      icon: isKey ? '📌' : '⭐', color: isKey ? '#6366f1' : '#10b981', categoryId: (state.categories[0] && state.categories[0].id) || null, notes: ''
     };
 
     UI.openModal({
-      title: e ? 'Edit event' : 'New event',
+      title: isKey ? (e ? 'Edit important date' : 'New important date') : (e ? 'Edit event' : 'New event'),
       body: `
         <div class="field-row">
-          <div class="field"><label>Event *</label><input class="input" id="evTitle" maxlength="200" value="${H(base.title)}" placeholder="e.g. Soccer practice"></div>
+          <div class="field"><label>${isKey ? 'Important date *' : 'Event *'}</label><input class="input" id="evTitle" maxlength="200" value="${H(base.title)}" placeholder="${isKey ? 'e.g. Picture day, semester ends' : 'e.g. Soccer practice'}"></div>
           <div class="field"><label>Icon</label><select class="select" id="evIcon">
             ${['⭐', '⚽', '🎵', '🎭', '🏆', '🤝', '📌', '🏥', '✈️', '🎂'].map(i => `<option ${i === base.icon ? 'selected' : ''}>${i}</option>`).join('')}
           </select></div>
@@ -124,7 +129,7 @@
       buttons: [
         { label: 'Cancel', class: 'btn-ghost', onClick: () => UI.closeModal() },
         {
-          label: e ? 'Save changes' : 'Create event', class: 'btn-primary',
+          label: e ? 'Save changes' : (isKey ? 'Add date' : 'Create event'), class: 'btn-primary',
           onClick: () => {
             const title = document.getElementById('evTitle').value.trim();
             const date = document.getElementById('evDate').value;
@@ -139,9 +144,10 @@
               categoryId: document.getElementById('evCat').value || null,
               recurrence: document.getElementById('evRec').value ? { type: document.getElementById('evRec').value, interval: 1 } : { type: 'none', interval: 1 },
               notes: document.getElementById('evNotes').value,
-              color: e ? e.color : base.color
+              color: e ? e.color : base.color,
+              kind
             });
-            UI.toast('success', e ? 'Event updated' : 'Event created', title);
+            UI.toast('success', e ? (isKey ? 'Important date updated' : 'Event updated') : (isKey ? 'Important date added' : 'Event created'), title);
             UI.closeModal();
           }
         }

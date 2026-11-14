@@ -27,14 +27,6 @@
     state.tasks.filter(t => t.completedAt).forEach(t => { dowCounts[Utils.parseDate(t.completedAt.slice(0, 10)).getDay()]++; });
     const busiestDow = dowCounts.indexOf(Math.max(...dowCounts));
 
-    /* project rates */
-    const projData = state.projects.map(p => ({
-      label: `${p.icon} ${p.name}`,
-      value: state.tasks.filter(t => t.projectId === p.id && t.status === 'completed').length + p.milestones.filter(m => m.done).length,
-      max: state.tasks.filter(t => t.projectId === p.id).length + p.milestones.length,
-      color: p.color
-    })).filter(d => d.max > 0);
-
     /* priority distribution of open tasks */
     const prioCounts = ['urgent', 'high', 'medium', 'low'].map(p => ({
       label: p[0].toUpperCase() + p.slice(1),
@@ -100,11 +92,6 @@
           ${catData.length ? '<div class="chart-wrap"><canvas id="catChart"></canvas></div><div class="muted small" style="margin-top:8px">Completed / total tasks per category</div>'
             : '<div class="empty"><span class="empty-icon">🗂️</span>Add tasks with categories to see progress.</div>'}
         </div>
-        <div class="card">
-          <div class="card-title"><span>📁 Project completion</span></div>
-          ${projData.length ? '<div class="chart-wrap"><canvas id="projChart"></canvas></div>'
-            : '<div class="empty"><span class="empty-icon">📁</span>Create projects with tasks to track completion rates.</div>'}
-        </div>
       </div>
 
       <div class="card" style="margin-bottom:16px">
@@ -168,7 +155,6 @@
       { label: 'Open', value: st.open, color: cssVar('--surface-3') }
     ], { centerBig: st.completionPct + '%', centerSmall: 'complete' });
     if (catData.length) Charts.barChart(host.querySelector('#catChart'), catData, { labelWidth: 150 });
-    if (projData.length) Charts.barChart(host.querySelector('#projChart'), projData, { labelWidth: 150 });
     if (classData.length) Charts.barChart(host.querySelector('#clsChart'), classData, { labelWidth: 150 });
     Charts.lineChart(host.querySelector('#sesChart'), sessionTrend, { height: 200 });
     Charts.barChart(host.querySelector('#prioChart'), prioCounts.map((p, i) => ({

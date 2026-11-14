@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.1.0-school-portal';
+  const APP_VERSION = '2.2.0-personal';
 
   const NAV = [
     { section: 'Overview' },
@@ -19,14 +19,10 @@
     { id: 'monthly', icon: '📆', label: 'Calendar' },
     { id: 'timetable', icon: '🗓️', label: 'Timetable' },
     { id: 'agenda', icon: '📋', label: 'Agenda' },
-    { id: 'kanban', icon: '🗂️', label: 'Kanban Board' },
-    { id: 'projects', icon: '📁', label: 'Projects' },
     { section: 'Activities' },
     { id: 'activities', icon: '⭐', label: 'Activities & Events' },
     { id: 'personal', icon: '🏠', label: 'Other Responsibilities' },
     { section: 'Personal' },
-    { id: 'goals', icon: '🎯', label: 'Goals' },
-    { id: 'notes', icon: '📝', label: 'Notes' },
     { id: 'analytics', icon: '📊', label: 'Analytics' },
     { id: 'settings', icon: '⚙️', label: 'Settings' }
   ];
@@ -132,22 +128,13 @@
     const root = document.getElementById('searchResults');
     const query = q.trim().toLowerCase();
     if (!query) {
-      root.innerHTML = `<div class="empty" style="margin:8px"><span class="empty-icon">🔍</span>Type to search tasks, projects, goals and notes.</div>`;
+      root.innerHTML = `<div class="empty" style="margin:8px"><span class="empty-icon">🔍</span>Type to search tasks and events.</div>`;
       return;
     }
     const results = [];
     state.tasks.forEach(t => {
       const hay = (t.title + ' ' + t.description + ' ' + t.notes + ' ' + t.tags.join(' ')).toLowerCase();
       if (hay.includes(query)) results.push({ kind: 'Task', title: t.title, sub: t.dueDate ? Utils.fmtDateSmart(t.dueDate) : 'no deadline', go: () => UI.openTaskViewer(t.id) });
-    });
-    state.projects.forEach(p => {
-      if ((p.name + ' ' + p.description + ' ' + p.notes).toLowerCase().includes(query)) results.push({ kind: 'Project', title: p.name, sub: `${Store.projectProgress(p)}% complete`, go: () => { closeSearch(); go('projects'); } });
-    });
-    state.goals.forEach(g => {
-      if ((g.name + ' ' + g.description).toLowerCase().includes(query)) results.push({ kind: 'Goal', title: g.name, sub: `${Store.goalProgress(g)}% of milestones done`, go: () => { closeSearch(); go('goals'); } });
-    });
-    state.notes.forEach(n => {
-      if ((n.title + ' ' + n.body).toLowerCase().includes(query)) results.push({ kind: 'Note', title: n.title, sub: (n.body || '').slice(0, 60), go: () => { closeSearch(); go('notes'); } });
     });
     state.categories.forEach(c => {
       if (c.name.toLowerCase().includes(query)) results.push({ kind: 'Category', title: `${c.icon} ${c.name}`, sub: 'category', go: () => { closeSearch(); go('settings'); } });
@@ -257,59 +244,10 @@
     ];
     classes.forEach(c => Store.saveClass(c));
 
-    const projId = 'proj-sample';
-    Store.saveProject({
-      id: projId, name: 'Biology Research Paper', icon: '📝', color: '#ec4899',
-      description: 'End-of-term research paper on ecosystem dynamics — 12 pages, APA style.',
-      startDate: d(-10), dueDate: d(9), priority: 'high', status: 'in-progress', categoryId: 'cat-projects', classId: 'cls-sci',
-      milestones: [
-        { id: Utils.uid('ms'), title: 'Choose topic & get approval', done: true },
-        { id: Utils.uid('ms'), title: 'Finish literature research', done: true },
-        { id: Utils.uid('ms'), title: 'Complete first draft', done: false, dueDate: d(4) },
-        { id: Utils.uid('ms'), title: 'Revise & final edits', done: false, dueDate: d(8) }
-      ],
-      links: [{ label: 'Style guide', url: 'https://apastyle.apa.org' }],
-      notes: 'Office hours: Tue/Thu 3–5pm. Grading rubric in course portal.'
-    });
-
-    const tasks = [
-      { title: 'Math homework set 7', description: 'Chapter 7: problems 1–20.', dueDate: today, time: '19:00', estimateMin: 60, priority: 'medium', categoryId: 'cat-school', classId: 'cls-math', assignmentType: 'homework', tags: ['math'], reminders: [30], sessions: [{ date: today, time: '19:00', durationMin: 45, objective: 'Problems 1–20' }] },
-      { title: 'Finish science lab report', description: 'Sections: method, results, error analysis.', dueDate: d(2), time: '16:00', estimateMin: 90, priority: 'high', categoryId: 'cat-school', classId: 'cls-sci', assignmentType: 'lab', submission: 'working', tags: ['lab'], reminders: [30], subtasks: [{ title: 'Write method section', done: true }, { title: 'Error analysis', done: false }], sessions: [{ date: today, time: '16:00', durationMin: 60, objective: 'Error analysis + graphs' }] },
-      { title: 'Reading log — chapters 5–6', dueDate: d(3), estimateMin: 40, priority: 'medium', categoryId: 'cat-school', classId: 'cls-core', assignmentType: 'reading', sessions: [{ date: d(1), time: '19:30', durationMin: 40, objective: 'Chapters 5–6 + notes' }] },
-      { title: 'Science test — unit 3', description: 'Covers the current unit. Redo practice questions first.', dueDate: d(7), estimateMin: 120, priority: 'high', categoryId: 'cat-study', classId: 'cls-sci', assignmentType: 'test', tags: ['exam'], reminders: [1440], subtasks: [{ title: 'Practice questions A', done: true }, { title: 'Practice questions B', done: false }], sessions: [{ date: d(3), time: '16:30', durationMin: 60, objective: 'Redo practice questions' }, { date: d(5), time: '16:30', durationMin: 60, objective: 'Flashcards: key terms' }] },
-      { title: 'Return library books', dueDate: d(-1), priority: 'low', categoryId: 'cat-misc' },
-      { title: 'Water the plants', dueDate: today, time: '09:00', priority: 'low', categoryId: 'cat-household', recurrence: { type: 'weekly', interval: 1 } },
-      { title: 'Practice guitar — new song', dueDate: d(2), time: '20:00', estimateMin: 40, priority: 'low', categoryId: 'cat-hobbies', recurrence: { type: 'daily', interval: 2 } },
-      { title: 'Sign up for science fair', priority: 'low', categoryId: 'cat-school', classId: 'cls-sci', notes: 'Ask Mrs. Khichadia about the deadline.' }
-    ];
-    tasks.forEach(t => Store.saveTask(t));
-
-    const events = [
-      { id: 'evt-soccer', title: 'Soccer practice', icon: '⚽', date: d(1), time: '18:00', endTime: '19:30', location: 'Main field', categoryId: 'cat-extracurricular', recurrence: { type: 'weekly', interval: 1 }, notes: 'Bring shin guards and water bottle.' },
-      { id: 'evt-dentist', title: 'Dentist appointment', icon: '🏥', date: d(3), time: '10:30', endTime: '11:15', location: 'Dr. Patel', categoryId: 'cat-personal' }
-    ];
-    events.forEach(e => Store.saveEvent(e));
-
     Store.saveBreak({
       name: 'Winter break',
       start: Utils.addMonths(today, 1).slice(0, 8) + '20',
       end: Utils.addMonths(Utils.addMonths(today, 1), 1).slice(0, 8) + '02'
-    });
-
-    Store.saveGoal({
-      name: 'Make the honor roll this semester', icon: '🎓', color: '#8b5cf6',
-      description: 'Keep every class at B+ or above.',
-      targetDate: d(60),
-      milestones: [
-        { id: Utils.uid('ms'), title: 'A in the chemistry midterm', done: false },
-        { id: Utils.uid('ms'), title: 'All homework turned in for 4 straight weeks', done: false }
-      ]
-    });
-
-    Store.saveNote({
-      title: 'Study techniques that work for me', color: '#10b981', classId: 'cls-sci',
-      body: 'Pomodoro 25/5 works best after 4pm.\nFlashcards for chemistry formulas.\nTeach concepts out loud to check understanding.',
-      projectIds: [projId]
     });
   }
 

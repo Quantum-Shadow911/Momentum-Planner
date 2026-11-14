@@ -94,7 +94,6 @@
     const tests = open.filter(t => Priority.isAssessment(t));
     const work = open.filter(t => !Priority.isAssessment(t));
     const done = tasks.filter(t => t.status === 'completed');
-    const classNotes = state.notes.filter(n => n.classId === c.id);
 
     ws.innerHTML = `
       <div class="card" style="border-color:${H(c.color)}">
@@ -115,9 +114,6 @@
             ${c.slots.length ? `<div class="detail-section"><h4>Class schedule</h4>
               ${c.slots.map(s => `<div class="muted small" style="padding:2px 0">${Utils.DOW[s.day]}: ${Utils.fmtTime(s.start)}–${Utils.fmtTime(s.end)}${c.room ? ' · ' + H(c.room) : ''}</div>`).join('')}
             </div>` : ''}
-            ${classNotes.length ? `<div class="detail-section"><h4>📝 Related notes</h4>
-              ${classNotes.map(n => `<div class="mini-task" data-note="${H(n.id)}" style="cursor:pointer"><div class="mt-title">${H(n.title)}</div></div>`).join('')}
-            </div>` : ''}
             ${done.length ? `<div class="detail-section"><h4>✅ Completed (${done.length})</h4>
               <div class="task-list" id="wsDone"></div></div>` : ''}
           </div>
@@ -136,7 +132,6 @@
     ws.querySelector('#wsClose').addEventListener('click', () => { selectedClassId = null; render(host); });
     ws.querySelector('#wsAddWork').addEventListener('click', () => UI.openTaskEditor(null, { classId: c.id, assignmentType: 'homework' }));
     ws.querySelector('#wsAddTest').addEventListener('click', () => UI.openTaskEditor(null, { classId: c.id, assignmentType: 'test' }));
-    ws.querySelectorAll('[data-note]').forEach(el => el.addEventListener('click', () => { App.go('notes'); Views.notes.openNoteEditor(el.dataset.note); }));
   }
 
   function openClassEditor(classId) {

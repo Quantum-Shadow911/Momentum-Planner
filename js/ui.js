@@ -452,13 +452,6 @@
       </div>
       <div class="field-row">
         <div class="field">
-          <label>Project</label>
-          <select class="select" name="projectId">
-            <option value="">None</option>
-            ${state.projects.map(pr => `<option value="${H(pr.id)}" ${base.projectId === pr.id ? 'selected' : ''}>${H(pr.icon)} ${H(pr.name)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="field">
           <label>Tags <span class="muted">(comma separated)</span></label>
           <input class="input" name="tags" value="${H((base.tags || []).join(', '))}" placeholder="essay, chapter-4, group-work">
         </div>

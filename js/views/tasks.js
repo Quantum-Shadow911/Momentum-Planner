@@ -57,7 +57,7 @@
           <option value="">All submissions</option>
           ${Storage.SUBMISSION_STATES.map(s => `<option value="${s}" ${filters.sub === s ? 'selected' : ''}>${{ 'not-started': 'Not started', working: 'Working on it', ready: 'Ready to submit', submitted: 'Submitted' }[s]}</option>`).join('')}
         </select>
-        ${allTags.length ? `<select class="select" id="fTag"><option value="">All tags</option>${allTags.map(t => `<option value="${H(t)}" ${filters.tag === t ? 'selected' : ''}>#${H(t)}</option>`).join('')}</select>` : ''}
+        <select class="select" id="fTag"><option value="">All tags</option>${allTags.map(t => `<option value="${H(t)}" ${filters.tag === t ? 'selected' : ''}>#${H(t)}</option>`).join('')}</select>
         <select class="select" id="fSort">
           <option value="due" ${filters.sort === 'due' ? 'selected' : ''}>Sort: deadline</option>
           <option value="priority" ${filters.sort === 'priority' ? 'selected' : ''}>Sort: priority</option>

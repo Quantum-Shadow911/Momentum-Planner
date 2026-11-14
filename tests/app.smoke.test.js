@@ -47,11 +47,7 @@ await import('../js/views/daily.js');
 await import('../js/views/weekly.js');
 await import('../js/views/monthly.js');
 await import('../js/views/agenda.js');
-await import('../js/views/kanban.js');
-await import('../js/views/projects.js');
-await import('../js/views/goals.js');
 await import('../js/views/analytics.js');
-await import('../js/views/notes.js');
 await import('../js/views/settings.js');
 
 for (const k of ['Utils', 'H', 'Storage', 'Store', 'Priority', 'Planner', 'Timer', 'Charts', 'Reminders', 'UI', 'Views']) {
@@ -69,15 +65,15 @@ beforeAll(() => {
 
 describe('app boot', () => {
   it('boots with seeded sample data and renders the dashboard', () => {
-    expect(Store.get().tasks.length).toBeGreaterThan(5);
+    expect(Store.get().tasks.length).toBe(0);
     expect(Store.get().categories.length).toBe(9);
     expect(Store.get().classes.length).toBe(5);
-    expect(Store.get().events.length).toBe(2);
+    expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.1.0-school-portal');
-    expect(Store.get().settings.lastVersion).toBe('2.1.0-school-portal');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.2.0-personal');
+    expect(Store.get().settings.lastVersion).toBe('2.2.0-personal');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
-    expect(document.querySelectorAll('.nav-item').length).toBe(18);
+    expect(document.querySelectorAll('.nav-item').length).toBe(14);
     expect(document.getElementById('viewHost').innerHTML).toContain('Recommended next task');
     expect(document.getElementById('viewHost').innerHTML).toContain('To-do list — today');
     expect(document.getElementById('viewHost').innerHTML).toContain('appointments');
@@ -103,7 +99,7 @@ describe('app boot', () => {
 });
 
 describe('all views render without errors', () => {
-  const viewIds = ['classes', 'activities', 'exams', 'timetable', 'daily', 'weekly', 'monthly', 'agenda', 'kanban', 'tasks', 'projects', 'goals', 'analytics', 'notes', 'settings'];
+  const viewIds = ['classes', 'activities', 'exams', 'timetable', 'daily', 'weekly', 'monthly', 'agenda', 'tasks', 'analytics', 'settings'];
   viewIds.forEach(id => {
     it(`renders ${id}`, () => {
       expect(() => App.go(id)).not.toThrow();
@@ -114,11 +110,11 @@ describe('all views render without errors', () => {
 });
 
 describe('cross-view synchronization', () => {
-  it('task added via store appears in dashboard, kanban and agenda', () => {
+  it('task added via store appears in dashboard, weekly board and agenda', () => {
     const t = Store.saveTask({ title: 'Sync check task', dueDate: Utils.todayStr(), status: 'in-progress' });
     App.go('dashboard');
     expect(document.getElementById('viewHost').innerHTML).toContain('Sync check task');
-    App.go('kanban');
+    App.go('weekly');
     expect(document.getElementById('viewHost').innerHTML).toContain('Sync check task');
     App.go('agenda');
     expect(document.getElementById('viewHost').innerHTML).toContain('Sync check task');
@@ -127,7 +123,7 @@ describe('cross-view synchronization', () => {
     expect(document.getElementById('viewHost').innerHTML).not.toContain('Sync check task');
   });
 
-  it('kanban status change reflects in tasks view and stats', () => {
+  it('status change reflects in tasks view and stats', () => {
     const t = Store.saveTask({ title: 'Kanban flow task' });
     Store.setTaskStatus(t.id, 'in-progress');
     expect(Store.getTask(t.id).status).toBe('in-progress');
@@ -216,7 +212,7 @@ describe('theme & interactions', () => {
   });
 
   it('study timer widget appears, pauses and logs time', () => {
-    const t = Store.get().tasks.find(x => x.status !== 'completed');
+    const t = Store.saveTask({ title: 'Timer check task', dueDate: Utils.todayStr() });
     Timer.start(t.id);
     expect(document.getElementById('timerWidget').classList.contains('hidden')).toBe(false);
     Timer.pause();
@@ -225,9 +221,11 @@ describe('theme & interactions', () => {
     const res = Timer.finish();
     if (res.committed) expect(Store.getTask(t.id).actualMin).toBeGreaterThanOrEqual(before + 1);
     expect(document.getElementById('timerWidget').classList.contains('hidden')).toBe(true);
+    Store.deleteTask(t.id);
   });
 
-  it('exams view lists the seeded chemistry midterm with revision sessions', () => {
+  it('exams view lists upcoming assessments with revision sessions', () => {
+    Store.saveTask({ title: 'Science test — unit 3', classId: 'cls-sci', assignmentType: 'test', dueDate: Utils.addDays(Utils.todayStr(), 7), estimateMin: 120, priority: 'high' });
     App.go('exams');
     const html = document.getElementById('viewHost').innerHTML;
     expect(html).toContain('Science test');
@@ -285,21 +283,6 @@ describe('theme & interactions', () => {
     expect(Number.parseFloat(block.style.height)).toBeGreaterThan(50);
   });
 
-  it('class workspace lists only explicitly linked notes and opens the clicked note', () => {
-    const cls = Store.get().classes[0];
-    Store.saveNote({ title: 'Explicit link', body: 'formulas', classId: cls.id });
-    Store.saveNote({ title: 'Loose mention', body: 'lorem ' + cls.name + ' ipsum', classId: null });
-    Views.classes.selectClass(cls.id);
-    App.go('classes');
-    const ws = document.getElementById('classWorkspace');
-    expect(ws.textContent).toContain('Explicit link');
-    expect(ws.textContent).not.toContain('Loose mention');
-    const noteEl = Array.from(ws.querySelectorAll('[data-note]')).find(n => n.textContent.includes('Explicit link'));
-    noteEl.click();
-    expect(document.getElementById('ntTitle').value).toBe('Explicit link');
-    UI.closeModal();
-  });
-
   it('global search finds seeded tasks', () => {
     App.openSearch();
     const input = document.getElementById('searchInput');
@@ -315,13 +298,8 @@ describe('theme & interactions', () => {
 });
 
 describe('v2.1.0 app-level features', () => {
-  it('seed marks soccer practice as a weekly recurring event', () => {
-    const soccer = Store.get().events.find(e => e.id === 'evt-soccer');
-    expect(soccer).toBeTruthy();
-    expect(soccer.recurrence).toEqual({ type: 'weekly', interval: 1 });
-  });
-
   it('dashboard offers the weekly academic review and its modal opens with content', () => {
+    Store.saveEvent({ id: 'evt-review-fixture', title: 'Soccer practice', date: Utils.addDays(Utils.todayStr(), 1), time: '18:00', endTime: '19:30', recurrence: { type: 'weekly', interval: 1 } });
     App.go('dashboard');
     const btn = document.getElementById('dashReview');
     expect(btn).toBeTruthy();
@@ -336,6 +314,7 @@ describe('v2.1.0 app-level features', () => {
   });
 
   it('event cards show a recurrence badge', () => {
+    expect(Store.getEvent('evt-review-fixture')).toBeTruthy();
     App.go('activities');
     const host = document.getElementById('viewHost').textContent;
     expect(host).toContain('every week');

@@ -1,6 +1,6 @@
 # ⚡ Momentum — School-First Academic Planner
 
-A fully interactive, school-first planner that combines an assignment tracker, class workspaces, study-session planner, digital calendar, daily/weekly workload planner, extracurricular schedule, project manager, goals tracker and productivity dashboard. **Zero runtime dependencies** — plain HTML/CSS/JS with localStorage persistence.
+A fully interactive, school-first planner that combines an assignment tracker, class workspaces, study-session planner, digital calendar, daily/weekly workload planner, extracurricular schedule and productivity dashboard. **Zero runtime dependencies** — plain HTML/CSS/JS with localStorage persistence.
 
 ## Run it
 
@@ -11,7 +11,7 @@ npm start          # serves at http://localhost:4173 (zero-dep Node server)
 …or open `index.html` directly in a browser, or host the folder statically (works on GitHub Pages).
 
 ```bash
-npm test           # run the 120-test suite (Vitest + jsdom)
+npm test           # run the 114-test suite (Vitest + jsdom)
 npm run test:watch
 ```
 
@@ -28,7 +28,7 @@ npm run test:watch
 | **Attachments** | Attach worksheets and instruction files (up to 2 MB each, stored locally in your browser) to any task; download from the task viewer |
 | **School breaks** | Define holiday ranges in Settings; they are shaded in the calendar, flagged in the daily/weekly planners and skipped by workload balancing and smart rescheduling |
 | **Task management** | Create / edit / duplicate / delete / complete; description, start & due dates, scheduled time, duration, priority (Low→Urgent), status, category, tags, estimate vs. actual time, subtask checklists, recurrence (daily / weekdays / weekly / biweekly / monthly — every option respects its interval), reminders, reference links, dependencies, notes; search, 5 sort orders, combined filters (incl. class & type); completed tasks move to a collapsible history |
-| **Planning views** | Daily (hour-by-hour grid with timed sessions, drag to reschedule), Weekly (7-day board with ⚖ daily workload totals, heavy-load warnings and one-click **⚖ Balance workload** approval flow), Monthly calendar (overdue vs. deadline highlighting, events + break shading in cells, 3-month term overview, day dialog), Timetable (weekly class-schedule grid), Agenda (chronological groups incl. events, overdue & undated), Kanban (4 status columns with drag & drop) — all synchronized through a single store |
+| **Planning views** | Daily (hour-by-hour grid with timed sessions, drag to reschedule), Weekly (7-day board with ⚖ daily workload totals, heavy-load warnings and one-click **⚖ Balance workload** approval flow), Monthly calendar (overdue vs. deadline highlighting, events + break shading in cells, 3-month term overview, day dialog), Timetable (weekly class-schedule grid), Agenda (chronological groups incl. events, overdue & undated) — all synchronized through a single store |
 | **Smart scheduling** | ⚖ Balance workload: moves study sessions off overloaded days to the lightest feasible day (before the due date, skipping breaks) with an approve/reject dialog; ⚖ Smart reschedule: relocates overdue work and missed sessions to realistic new days; both never change anything without your approval |
 | **Activities & events** | Dedicated events view for extracurriculars: icon, time range, location, category, notes; upcoming 30 days grouped by date with collapsible history; events appear alongside tasks in the calendar but behave differently (no completion, no priority) |
 | **Recurring events** | Events can repeat daily / weekdays / weekly / biweekly / monthly (with interval) — shown with a 🔁 badge, expanded automatically across the calendar, daily/weekly planners, agenda and dashboard |
@@ -37,16 +37,14 @@ npm run test:watch
 | **Storage meter** | Settings shows how much of the ~5 MB browser storage is in use and counts attachments, warning near the limit |
 | **Categories** | 9 seeded categories; full CRUD with icon + color picker |
 | **Smart prioritization** | Weighted scoring: deadline proximity, overdue boost, assigned priority, in-progress momentum, quick-win bonus, long-task drag for far-out work, dependency blocking (blocked tasks are never recommended) |
-| **Projects & goals** | Milestones with due dates, linked tasks, auto-calculated progress, status/priority, links & notes; goals with milestone progress and target dates |
 | **Analytics** | 14-day completion trend (line), overall completion (donut), category & project progress (bars), per-class progress, study time trend (hours of completed sessions), 7-day workload chart with over-limit warnings, submission pipeline, completion-by-weekday history, open-tasks-by-priority — all computed from real saved data |
 | **Reminders** | Per-task reminder times + app-wide default; in-app toasts always; real device notifications only after explicit browser permission (status shown honestly in Settings) |
-| **Notes** | Colored, pinnable notes searchable across titles/bodies, linkable to tasks and projects |
 | **Inbox** | Quick capture without deadlines: undated tasks collect in the Assignment Inbox until you schedule them |
 | **Data reliability** | Autosave to localStorage on every change, schema validation on load, 5 rolling automatic snapshots with one-click restore, JSON export/import, trash with restore for every item type, "delete all" behind confirmation |
 
 ## Keyboard shortcuts
 
-- `Ctrl/Cmd + K` — global search (tasks, projects, goals, notes, categories, events)
+- `Ctrl/Cmd + K` — global search (tasks, events, categories)
 - `Ctrl/Cmd + N` — quick add task
 - `Esc` — close search / modal
 
@@ -65,8 +63,8 @@ js/charts.js          dependency-free canvas charts
 js/reminders.js       in-app + device notification scheduler
 js/ui.js              toasts, modals, task editor, shared task item renderer
 js/views/*.js         one module per view (dashboard, classes, exams, timetable,
-                      tasks, daily, weekly, monthly, agenda, kanban,
-                      activities, projects, goals, analytics, notes, settings)
+                      tasks, daily, weekly, monthly, agenda,
+                      activities, analytics, settings)
 js/app.js             router, nav, theme, global search, seed data
 tests/                Vitest unit tests + full-app jsdom smoke test
 ```

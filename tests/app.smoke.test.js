@@ -76,8 +76,8 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(7);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.4-fresh-fix');
-    expect(Store.get().settings.lastVersion).toBe('2.4.4-fresh-fix');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.5-task-fix');
+    expect(Store.get().settings.lastVersion).toBe('2.4.5-task-fix');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(12);
     const navViews = [...document.querySelectorAll('.nav-item')].map(b => b.dataset.view);
@@ -401,6 +401,20 @@ describe('v2.1.0 app-level features', () => {
     expect(dz).toBeTruthy();
     expect(dz.querySelector('#deleteAccount').textContent).toContain('Delete account');
     expect(dz.querySelector('#resetAll')).toBeTruthy();
+  });
+
+  it('full task editor saves a task (projectId field removed but save must not crash)', () => {
+    App.go('tasks');
+    document.getElementById('newTaskBtn').click();
+    const modal = document.querySelector('.modal');
+    expect(modal).toBeTruthy();
+    modal.querySelector('[name="title"]').value = 'Editor-created task';
+    const create = [...modal.querySelectorAll('.btn')].find(b => b.textContent.includes('Create task'));
+    create.click();
+    const saved = Store.get().tasks.find(t => t.title === 'Editor-created task');
+    expect(saved).toBeTruthy();
+    expect(saved.projectId).toBeNull();
+    Store.deleteTask(saved.id);
   });
 
   it('daily planner shows a conflict banner for overlapping commitments', () => {

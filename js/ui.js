@@ -628,7 +628,7 @@
         priority: f('priority').value,
         status: f('status').value,
         categoryId: f('categoryId').value || null,
-        projectId: f('projectId').value || null,
+        projectId: f('projectId') ? (f('projectId').value || null) : (base.projectId || null),
         tags: f('tags').value.split(',').map(s => s.trim()).filter(Boolean),
         recurrence: { type: recurrenceType, interval: Math.max(1, Number(f('recurrenceInterval').value) || 1) },
         reminders: Array.from(body.querySelectorAll('#remChoices input:checked')).map(i => Number(i.value)),

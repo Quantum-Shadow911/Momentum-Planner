@@ -90,6 +90,7 @@
       icon: fields.icon || '🙂',
       salt,
       passHash: hash(String(password), salt),
+      fresh: true,
       createdAt: new Date().toISOString()
     };
     list.push(p);
@@ -151,18 +152,7 @@
     return { ok: true };
   }
 
-  function deleteProfile(id, confirmName) {
-    const list = loadProfiles();
-    const p = list.find(x => x.id === id);
-    if (!p) return { error: 'Profile not found.' };
-    if ((confirmName || '').trim().toLowerCase() !== p.name.toLowerCase()) return { error: 'Type the name exactly to confirm.' };
-    try {
-      global.localStorage.removeItem(DATA_BASE + '.' + id);
-      global.localStorage.removeItem(BACKUP_BASE + '.' + id);
-    } catch (e) { /* ignore */ }
-    saveProfiles(list.filter(x => x.id !== id));
-    return { ok: true };
-  }
+  /* Accounts are permanent: there is intentionally no way to delete one. */
 
   /* Move pre-login data (momentum.data.v1) into the first profile created. */
   function migrateLegacy(profileId) {
@@ -183,7 +173,7 @@
   const Auth = {
     PROFILES_KEY, SESSION_KEY, DATA_BASE, BACKUP_BASE,
     hash, profiles, sessionProfile, createProfile, findAccount, completeProfile, login, logout,
-    setPassword, deleteProfile, migrateLegacy, hasLegacy, USERNAME_RE, EMAIL_RE
+    setPassword, migrateLegacy, hasLegacy, USERNAME_RE, EMAIL_RE
   };
 
   global.Auth = Auth;

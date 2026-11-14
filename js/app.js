@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.4.1-accounts';
+  const APP_VERSION = '2.4.2-fresh-accounts';
 
   const NAV = [
     { section: 'Overview' },
@@ -154,8 +154,17 @@
   }
 
   /* ---------- Sample data (first run / optional) ---------- */
-  function seedIfEmpty() {
+  function seedIfEmpty(profile) {
     const state = Store.get();
+    if (profile && profile.fresh) {
+      /* New accounts start completely empty: no sample tasks, classes,
+         teachers, events or breaks — just the category framework. */
+      if (!state.categories.length) seedCategories();
+      state.settings.seeded = true;
+      state.settings.lastVersion = APP_VERSION;
+      Store.persist();
+      return;
+    }
     if (state.settings.seeded || state.tasks.length || state.categories.length) {
       state.settings.seeded = true;
       Store.persist();
@@ -216,9 +225,7 @@
     });
   }
 
-  function loadSampleData() {
-    const today = Utils.todayStr();
-    const d = n => Utils.addDays(today, n);
+  function seedCategories() {
     const cats = [
       { id: 'cat-school', name: 'Schoolwork & Homework', color: '#3b82f6', icon: '📚' },
       { id: 'cat-study', name: 'Studying & Exam Prep', color: '#8b5cf6', icon: '🎓' },
@@ -231,6 +238,11 @@
       { id: 'cat-misc', name: 'Miscellaneous', color: '#64748b', icon: '🏷️' }
     ];
     cats.forEach(c => Store.saveCategory(c));
+  }
+
+  function loadSampleData() {
+    const today = Utils.todayStr();
+    seedCategories();
 
     const weekdays = [1, 2, 3, 4, 5];
     const daily = (start, end) => weekdays.map(day => ({ day, start, end }));
@@ -283,7 +295,7 @@
       lockBtn.onclick = () => { Auth.logout(); boot(); };
     }
     if (!Store.get().settings.userName) Store.updateSettings({ userName: profile.name });
-    seedIfEmpty();
+    seedIfEmpty(profile);
     renderTimerWidget();
     go('dashboard');
     maybeShowUpgrade();

@@ -82,6 +82,9 @@ describe('account data layer', () => {
     expect(res.profile.username).toBe('alex');
     expect(res.profile.email).toBe('alex@example.com');
     expect(res.profile.passHash).toBeTruthy();
+    const list = JSON.parse(dom.window.localStorage.getItem(Auth.PROFILES_KEY));
+    delete list.find(p => p.id === res.profile.id).fresh;
+    dom.window.localStorage.setItem(Auth.PROFILES_KEY, JSON.stringify(list));
     expect(Auth.createProfile(acct({ name: 'Other', email: 'other@example.com' })).error).toContain('taken');
     expect(Auth.createProfile(acct({ name: 'Other', username: 'alex2' })).error).toContain('already used');
     expect(Auth.createProfile(acct({ name: 'Other', username: 'ALEX', email: 'o2@example.com' })).error).toContain('taken');
@@ -120,14 +123,23 @@ describe('account data layer', () => {
     expect(Auth.login('alex', '5678')).toBe(true);
   });
 
-  it('deleteAccount requires typing the name and removes account data', () => {
+  it('accounts cannot be deleted', () => {
     const prof = Auth.createProfile(acct({ name: 'Temp Person', username: 'temp', email: 'temp@example.com' })).profile;
+    expect(Auth.deleteProfile).toBeUndefined();
+    expect(Auth.profiles().some(p => p.id === prof.id)).toBe(true);
+  });
+
+  it('new accounts start completely fresh (no sample classes or tasks)', () => {
+    const prof = Auth.createProfile(acct({ name: 'Fresh Person', username: 'fresh', email: 'fresh@example.com' })).profile;
+    expect(prof.fresh).toBe(true);
     Storage.setProfile(prof.id);
-    Storage.save(Storage.emptyState());
-    expect(Auth.deleteProfile(prof.id, 'wrong').error).toBeTruthy();
-    expect(Auth.deleteProfile(prof.id, 'temp person').ok).toBe(true);
-    expect(Auth.profiles().some(p => p.id === prof.id)).toBe(false);
-    expect(dom.window.localStorage.getItem('momentum.data.v1.' + prof.id)).toBeNull();
+    App.startApp(prof.id);
+    expect(Store.get().classes.length).toBe(0);
+    expect(Store.get().tasks.length).toBe(0);
+    expect(Store.get().events.length).toBe(0);
+    expect(Store.get().breaks.length).toBe(0);
+    Auth.logout();
+    App.boot();
   });
 
   it('migrateLegacy moves pre-login data into the first account created', () => {

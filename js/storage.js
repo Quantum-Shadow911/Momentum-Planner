@@ -150,6 +150,7 @@
       name: name.slice(0, 80),
       teacher: str(c.teacher).slice(0, 80),
       room: str(c.room).slice(0, 40),
+      period: str(c.period).slice(0, 10),
       color: /^#[0-9a-fA-F]{6}$/.test(c.color || '') ? c.color : '#3b82f6',
       icon: str(c.icon).slice(0, 8) || '📘',
       slots: arr(c.slots).map(s => {

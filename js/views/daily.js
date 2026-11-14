@@ -147,5 +147,5 @@
   }
 
   global.Views = global.Views || {};
-  global.Views.daily = { title: 'Daily Planner', render, currentDate: () => currentDate };
+  global.Views.daily = { title: 'Daily Planner', render, currentDate: () => currentDate, setDate: d => { currentDate = d; } };
 })(typeof window !== 'undefined' ? window : globalThis);

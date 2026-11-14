@@ -234,13 +234,14 @@
     ];
     cats.forEach(c => Store.saveCategory(c));
 
+    const weekdays = [1, 2, 3, 4, 5];
+    const daily = (start, end) => weekdays.map(day => ({ day, start, end }));
     const classes = [
-      { id: 'cls-math', name: 'Mathematics', teacher: 'Mr. Alvarez', room: 'B-204', color: '#3b82f6', icon: '➗',
-        slots: [{ day: 1, start: '08:30', end: '09:30' }, { day: 3, start: '08:30', end: '09:30' }] },
-      { id: 'cls-sci', name: 'Science', teacher: 'Dr. Chen', room: 'Lab 2', color: '#14b8a6', icon: '🧪',
-        slots: [{ day: 2, start: '10:00', end: '11:15' }, { day: 4, start: '10:00', end: '11:15' }] },
-      { id: 'cls-eng', name: 'English', teacher: 'Ms. Rivera', room: 'A-101', color: '#ec4899', icon: '📖',
-        slots: [{ day: 1, start: '13:00', end: '14:15' }] }
+      { id: 'cls-sci', name: 'Science', teacher: 'Mrs. Khichadia', period: '1', color: '#14b8a6', icon: '🧪', slots: daily('08:30', '09:20') },
+      { id: 'cls-pe', name: 'P.E.', teacher: 'Mrs. Pratt', period: '2', color: '#10b981', icon: '🏃', slots: daily('09:25', '10:15') },
+      { id: 'cls-strings', name: 'Strings Orchestra', teacher: 'Aaron Balot', period: '3', color: '#8b5cf6', icon: '🎻', slots: daily('10:20', '11:10') },
+      { id: 'cls-math', name: 'Math', teacher: 'Mr. Haun', period: '4', color: '#3b82f6', icon: '➗', slots: daily('11:15', '12:05') },
+      { id: 'cls-core', name: 'Core — Reading · Language Arts · Social Studies', teacher: 'Mrs. Kaplenko', period: '5–7', color: '#f59e0b', icon: '📖', slots: daily('12:45', '15:25') }
     ];
     classes.forEach(c => Store.saveClass(c));
 
@@ -262,12 +263,12 @@
     const tasks = [
       { title: 'Math homework set 7', description: 'Chapter 7: problems 1–20.', dueDate: today, time: '19:00', estimateMin: 60, priority: 'medium', categoryId: 'cat-school', classId: 'cls-math', assignmentType: 'homework', tags: ['math'], reminders: [30], sessions: [{ date: today, time: '19:00', durationMin: 45, objective: 'Problems 1–20' }] },
       { title: 'Finish science lab report', description: 'Sections: method, results, error analysis.', dueDate: d(2), time: '16:00', estimateMin: 90, priority: 'high', categoryId: 'cat-school', classId: 'cls-sci', assignmentType: 'lab', submission: 'working', tags: ['lab'], reminders: [30], subtasks: [{ title: 'Write method section', done: true }, { title: 'Error analysis', done: false }], sessions: [{ date: today, time: '16:00', durationMin: 60, objective: 'Error analysis + graphs' }] },
-      { title: 'English reading — chapters 5–6', dueDate: d(3), estimateMin: 40, priority: 'medium', categoryId: 'cat-school', classId: 'cls-eng', assignmentType: 'reading', sessions: [{ date: d(1), time: '19:30', durationMin: 40, objective: 'Chapters 5–6 + notes' }] },
-      { title: 'Chemistry midterm — unit 3', description: 'Covers stoichiometry, bonding, reactions.', dueDate: d(7), estimateMin: 120, priority: 'high', categoryId: 'cat-study', classId: 'cls-sci', assignmentType: 'test', tags: ['exam'], reminders: [1440], subtasks: [{ title: 'Practice exam A', done: true }, { title: 'Practice exam B', done: false }], sessions: [{ date: d(3), time: '16:30', durationMin: 60, objective: 'Redo practice exam B' }, { date: d(5), time: '16:30', durationMin: 60, objective: 'Flashcards: formulas' }] },
+      { title: 'Reading log — chapters 5–6', dueDate: d(3), estimateMin: 40, priority: 'medium', categoryId: 'cat-school', classId: 'cls-core', assignmentType: 'reading', sessions: [{ date: d(1), time: '19:30', durationMin: 40, objective: 'Chapters 5–6 + notes' }] },
+      { title: 'Science test — unit 3', description: 'Covers the current unit. Redo practice questions first.', dueDate: d(7), estimateMin: 120, priority: 'high', categoryId: 'cat-study', classId: 'cls-sci', assignmentType: 'test', tags: ['exam'], reminders: [1440], subtasks: [{ title: 'Practice questions A', done: true }, { title: 'Practice questions B', done: false }], sessions: [{ date: d(3), time: '16:30', durationMin: 60, objective: 'Redo practice questions' }, { date: d(5), time: '16:30', durationMin: 60, objective: 'Flashcards: key terms' }] },
       { title: 'Return library books', dueDate: d(-1), priority: 'low', categoryId: 'cat-misc' },
       { title: 'Water the plants', dueDate: today, time: '09:00', priority: 'low', categoryId: 'cat-household', recurrence: { type: 'weekly', interval: 1 } },
       { title: 'Practice guitar — new song', dueDate: d(2), time: '20:00', estimateMin: 40, priority: 'low', categoryId: 'cat-hobbies', recurrence: { type: 'daily', interval: 2 } },
-      { title: 'Sign up for science fair', priority: 'low', categoryId: 'cat-school', classId: 'cls-sci', notes: 'Ask Dr. Chen about the deadline.' }
+      { title: 'Sign up for science fair', priority: 'low', categoryId: 'cat-school', classId: 'cls-sci', notes: 'Ask Mrs. Khichadia about the deadline.' }
     ];
     tasks.forEach(t => Store.saveTask(t));
 

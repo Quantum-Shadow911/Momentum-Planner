@@ -1,6 +1,14 @@
-/* Momentum — Dashboard: school-first overview of everything that needs attention */
+/* Momentum — Dashboard: school-portal home — schedule panel left, to-do top, exams, dates, calendar */
 (function (global) {
   'use strict';
+
+  let calYear = null;
+  let calMonth = null;
+
+  function periodNum(c) {
+    const m = /^(\d+)/.exec(c.period || '');
+    return m ? Number(m[1]) : 99;
+  }
 
   function render(host) {
     const state = Store.get();
@@ -57,10 +65,17 @@
           <div class="reco-why">No unblocked tasks right now — add something new or enjoy the break.</div>`}
       </div>
 
-      <div class="grid grid-2" style="margin-bottom:16px">
-        <div class="stack">
+      <div class="dash-grid">
+        <div class="dash-side">
           <div class="card">
-            <div class="card-title"><span>📋 Today's priorities</span><button class="link-btn" data-go="daily">Daily planner →</button></div>
+            <div class="card-title"><span>🏫 My schedule</span><button class="link-btn" data-go="timetable">Timetable →</button></div>
+            <div id="dashPeriods"></div>
+            <button class="link-btn" id="dashEditCls" style="margin-top:8px">✏️ Edit classes & periods</button>
+          </div>
+        </div>
+        <div class="dash-main stack">
+          <div class="card">
+            <div class="card-title"><span>✅ To-do list — today</span><button class="link-btn" data-go="daily">Daily planner →</button></div>
             <div class="today-col" id="dashToday"></div>
           </div>
           ${overdue.length ? `
@@ -74,32 +89,46 @@
             <div id="dashSessions"></div>
           </div>
         </div>
-        <div class="stack">
-          <div class="card">
-            <div class="card-title"><span>📅 Upcoming deadlines</span><button class="link-btn" data-go="agenda">Full agenda →</button></div>
-            <div class="today-col" id="dashUpcoming"></div>
-          </div>
-          ${assessments.length ? `
-          <div class="card">
-            <div class="card-title"><span>📄 Tests & quizzes ahead</span><button class="link-btn" data-go="classes">My classes →</button></div>
-            <div class="today-col" id="dashTests"></div>
-          </div>` : ''}
-          <div class="card">
-            <div class="card-title"><span>⭐ Extracurricular schedule</span><button class="link-btn" data-go="activities">All events →</button></div>
-            <div class="today-col" id="dashEvents"></div>
-          </div>
-          ${recentlyDone.length ? `
-          <div class="card">
-            <div class="card-title"><span>✅ Recently completed</span></div>
-            <div class="today-col" id="dashDone"></div>
-          </div>` : ''}
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title"><span>📝 Exams & quizzes</span><button class="link-btn" data-go="exams">Exam prep →</button></div>
+        <div class="today-col" id="dashTests"></div>
+      </div>
+
+      <div class="grid grid-2" style="margin-bottom:16px">
+        <div class="card">
+          <div class="card-title"><span>📌 Important dates — deadlines</span><button class="link-btn" data-go="agenda">Full agenda →</button></div>
+          <div class="today-col" id="dashUpcoming"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>⭐ Activities & appointments</span><button class="link-btn" data-go="activities">All events →</button></div>
+          <div class="today-col" id="dashEvents"></div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title"><span>🗓 Next several days</span><button class="link-btn" data-go="weekly">Weekly planner →</button></div>
-        <div class="grid grid-4" id="dashNextDays"></div>
+      <div class="grid grid-2" style="margin-bottom:16px">
+        <div class="card">
+          <div class="card-title"><span>🗓 Calendar</span>
+            <span class="row" style="gap:6px">
+              <button class="icon-btn" id="calPrev" aria-label="Previous month">←</button>
+              <button class="icon-btn" id="calToday" aria-label="This month">•</button>
+              <button class="icon-btn" id="calNext" aria-label="Next month">→</button>
+            </span></div>
+          <div class="mini-cal-label" id="miniCalLabel"></div>
+          <div class="mini-cal" id="miniCal"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>🗓 Next several days</span><button class="link-btn" data-go="weekly">Weekly planner →</button></div>
+          <div class="grid grid-2" id="dashNextDays"></div>
+        </div>
       </div>
+
+      ${recentlyDone.length ? `
+      <div class="card">
+        <div class="card-title"><span>✅ Recently completed</span></div>
+        <div class="today-col" id="dashDone"></div>
+      </div>` : ''}
     `;
 
     /* quick add with clearable date */
@@ -129,8 +158,9 @@
       'Nothing scheduled for today.<br>Use quick add above to plan your day.', '🌤️');
     fillList(host.querySelector('#dashOverdue'), overdue.slice(0, 5), null, '⚠️');
     fillList(host.querySelector('#dashUpcoming'), dueSoon.length ? dueSoon.slice(0, 8) : null,
-      'No deadlines in the next 7 days.', '📅');
-    fillList(host.querySelector('#dashTests'), assessments.slice(0, 5), null, '📄');
+      'No deadlines in the next 7 days.', '📌');
+    fillList(host.querySelector('#dashTests'), assessments.length ? assessments.slice(0, 5) : null,
+      'No tests or quizzes in the next 14 days. 🎉', '📝');
     fillList(host.querySelector('#dashDone'), recentlyDone, null, '✅');
 
     const reschedBtn = host.querySelector('#dashResched');
@@ -144,6 +174,9 @@
         appliedTitle: 'Overdue work rescheduled'
       });
     });
+
+    buildPeriods(host, state, now);
+    buildMiniCalendar(host, state);
 
     /* sessions today */
     const sesHost = host.querySelector('#dashSessions');
@@ -175,7 +208,7 @@
     /* events this week */
     const evHost = host.querySelector('#dashEvents');
     if (!eventsWeek.length) {
-      evHost.innerHTML = `<div class="empty"><span class="empty-icon">⭐</span>No activities this week.</div>`;
+      evHost.innerHTML = `<div class="empty"><span class="empty-icon">⭐</span>No activities or appointments this week.</div>`;
     } else {
       eventsWeek.slice(0, 6).forEach(e => {
         const row = document.createElement('div');
@@ -242,6 +275,79 @@
     }
 
     host.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => App.go(b.dataset.go)));
+  }
+
+  /* Left panel: periods with classes; the current period is highlighted live */
+  function buildPeriods(host, state, now) {
+    const el = host.querySelector('#dashPeriods');
+    const classes = [...state.classes].sort((a, b) => periodNum(a) - periodNum(b));
+    if (!classes.length) {
+      el.innerHTML = `<div class="empty"><span class="empty-icon">🏫</span>No classes yet.<br>Add your periods in My Classes.</div>`;
+    } else {
+      const dow = now.getDay();
+      const mins = now.getHours() * 60 + now.getMinutes();
+      classes.forEach(c => {
+        const slot = (c.slots || []).find(s => s.day === dow);
+        const isNow = slot && Utils.minutesOf(slot.start) <= mins && mins < Utils.minutesOf(slot.end);
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'period-row' + (isNow ? ' now' : '');
+        row.innerHTML = `
+          <span class="p-badge">${c.period ? 'P' + H(c.period) : '·'}</span>
+          <span class="p-icon">${H(c.icon)}</span>
+          <span class="p-main">
+            <span class="p-name">${H(c.name)}${isNow ? ' <span class="badge badge-today">now</span>' : ''}</span>
+            <span class="p-teacher">${H(c.teacher || '')}${c.room ? ' · ' + H(c.room) : ''}</span>
+          </span>
+          ${slot ? `<span class="p-time">${H(Utils.fmtTime(slot.start))}–${H(Utils.fmtTime(slot.end))}</span>` : ''}`;
+        row.addEventListener('click', () => { Views.classes.selectClass(c.id); App.go('classes'); });
+        el.appendChild(row);
+      });
+    }
+    host.querySelector('#dashEditCls').addEventListener('click', () => App.go('classes'));
+  }
+
+  /* Mini month calendar: dots on days with tasks/events, click a day to open it */
+  function buildMiniCalendar(host, state) {
+    const now = new Date();
+    if (calYear === null) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
+    const today = Utils.todayStr();
+    const counts = {};
+    state.tasks.forEach(t => { if (t.status !== 'completed' && t.dueDate) counts[t.dueDate] = (counts[t.dueDate] || 0) + 1; });
+    state.events.forEach(e => { if (e.date) counts[e.date] = (counts[e.date] || 0) + 1; });
+
+    const label = host.querySelector('#miniCalLabel');
+    const grid = host.querySelector('#miniCal');
+    label.textContent = `${Utils.MONTHS[calMonth]} ${calYear}`;
+
+    const first = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-01`;
+    const gridStart = Utils.startOfWeek(first, state.settings.weekStartsOn);
+    grid.innerHTML = Utils.DOW_SHORT.map(d => `<div class="mini-cal-head">${d}</div>`).join('');
+    for (let i = 0; i < 42; i++) {
+      const d = Utils.addDays(gridStart, i);
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'mini-cell'
+        + (d.slice(0, 7) === first.slice(0, 7) ? '' : ' other')
+        + (d === today ? ' today' : '');
+      cell.innerHTML = `${Number(d.slice(8, 10))}${counts[d] ? '<span class="dot"></span>' : ''}`;
+      cell.title = counts[d] ? `${counts[d]} item${counts[d] > 1 ? 's' : ''}` : 'Open day';
+      cell.addEventListener('click', () => { Views.daily.setDate(d); App.go('daily'); });
+      grid.appendChild(cell);
+    }
+
+    const monthShift = n => {
+      calMonth += n;
+      if (calMonth < 0) { calMonth = 11; calYear--; }
+      if (calMonth > 11) { calMonth = 0; calYear++; }
+      buildMiniCalendar(host, state);
+    };
+    host.querySelector('#calPrev').addEventListener('click', () => monthShift(-1));
+    host.querySelector('#calNext').addEventListener('click', () => monthShift(1));
+    host.querySelector('#calToday').addEventListener('click', () => {
+      calYear = now.getFullYear(); calMonth = now.getMonth();
+      buildMiniCalendar(host, state);
+    });
   }
 
   function fillList(el, items, emptyHtml, emptyIcon) {

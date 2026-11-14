@@ -759,3 +759,38 @@ html[data-theme="dark"] .nav-item.active { color: #a5b4fc; }
 @media (max-width: 560px) {
   .tpl-grid { grid-template-columns: 1fr; }
 }
+
+/* ---------- Dashboard: school-portal layout ---------- */
+.dash-grid { display: grid; grid-template-columns: 300px 1fr; gap: 16px; margin-bottom: 16px; align-items: start; }
+.dash-side { position: sticky; top: 76px; }
+.period-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 9px 10px; border-radius: 10px; border: 1px solid transparent; background: none;
+  cursor: pointer; color: var(--text); font: inherit;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.period-row:hover { background: var(--surface-2); }
+.period-row.now { border-color: var(--accent); background: var(--accent-soft, var(--surface-3)); }
+.p-badge { font-weight: 800; font-size: 11px; color: var(--text-3); min-width: 28px; }
+.p-icon { font-size: 16px; }
+.p-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.p-name { font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-teacher { color: var(--text-3); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-time { font-size: 11px; color: var(--text-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mini-cal-label { font-weight: 700; font-size: 13.5px; margin-bottom: 8px; }
+.mini-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.mini-cal-head { font-size: 10.5px; color: var(--text-3); text-align: center; font-weight: 700; padding: 2px 0; }
+.mini-cell {
+  position: relative; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; border-radius: 8px; cursor: pointer; border: 1px solid transparent;
+  background: var(--surface-2); color: var(--text); font: inherit; padding: 0;
+  transition: border-color 0.12s ease;
+}
+.mini-cell:hover { border-color: var(--border-strong, var(--text-3)); }
+.mini-cell.other { opacity: 0.35; }
+.mini-cell.today { border-color: var(--accent); font-weight: 800; }
+.mini-cell .dot { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+@media (max-width: 900px) {
+  .dash-grid { grid-template-columns: 1fr; }
+  .dash-side { position: static; }
+}

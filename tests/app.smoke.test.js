@@ -71,7 +71,7 @@ describe('app boot', () => {
   it('boots with seeded sample data and renders the dashboard', () => {
     expect(Store.get().tasks.length).toBeGreaterThan(5);
     expect(Store.get().categories.length).toBe(9);
-    expect(Store.get().classes.length).toBe(3);
+    expect(Store.get().classes.length).toBe(5);
     expect(Store.get().events.length).toBe(2);
     expect(Store.get().breaks.length).toBe(1);
     expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.0.1-school-first');
@@ -79,8 +79,21 @@ describe('app boot', () => {
     expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(18);
     expect(document.getElementById('viewHost').innerHTML).toContain('Recommended next task');
-    expect(document.getElementById('viewHost').innerHTML).toContain("Today's priorities");
-    expect(document.getElementById('viewHost').innerHTML).toContain('Extracurricular schedule');
+    expect(document.getElementById('viewHost').innerHTML).toContain('To-do list — today');
+    expect(document.getElementById('viewHost').innerHTML).toContain('appointments');
+  });
+
+  it('dashboard renders the school-portal layout: schedule panel, to-do, exams, dates, calendar', () => {
+    expect(document.querySelector('.dash-grid')).toBeTruthy();
+    expect(document.querySelectorAll('#dashPeriods .period-row').length).toBe(5);
+    expect(document.getElementById('dashPeriods').textContent).toContain('Mrs. Khichadia');
+    expect(document.getElementById('dashPeriods').textContent).toContain('Mrs. Pratt');
+    expect(document.getElementById('dashPeriods').textContent).toContain('Mrs. Kaplenko');
+    expect(document.getElementById('dashPeriods').textContent).toContain('Strings Orchestra');
+    expect(document.getElementById('dashToday')).toBeTruthy();
+    expect(document.getElementById('dashTests')).toBeTruthy();
+    expect(document.getElementById('dashUpcoming')).toBeTruthy();
+    expect(document.querySelectorAll('#miniCal .mini-cell').length).toBe(42);
   });
 
   it('persists to localStorage automatically', () => {
@@ -217,7 +230,7 @@ describe('theme & interactions', () => {
   it('exams view lists the seeded chemistry midterm with revision sessions', () => {
     App.go('exams');
     const html = document.getElementById('viewHost').innerHTML;
-    expect(html).toContain('Chemistry midterm');
+    expect(html).toContain('Science test');
     expect(document.getElementById('exClassChips')).toBeTruthy();
   });
 
@@ -244,10 +257,10 @@ describe('theme & interactions', () => {
 
   it('revision sessions cannot be scheduled after the assessment date', () => {
     App.go('exams');
-    const exam = Store.get().tasks.find(t => t.title.includes('Chemistry midterm'));
+    const exam = Store.get().tasks.find(t => t.title.includes('Science test'));
     expect(exam).toBeTruthy();
     const before = exam.sessions.length;
-    const card = Array.from(document.querySelectorAll('.exam-card')).find(c => c.textContent.includes('Chemistry midterm'));
+    const card = Array.from(document.querySelectorAll('.exam-card')).find(c => c.textContent.includes('Science test'));
     card.querySelector('[data-rev]').click();
     document.getElementById('revDate').value = Utils.addDays(exam.dueDate, 2);
     const addBtn = Array.from(document.querySelectorAll('#modalRoot button')).find(b => b.textContent.trim() === 'Add session');
@@ -281,7 +294,8 @@ describe('theme & interactions', () => {
     const ws = document.getElementById('classWorkspace');
     expect(ws.textContent).toContain('Explicit link');
     expect(ws.textContent).not.toContain('Loose mention');
-    ws.querySelector('[data-note]').click();
+    const noteEl = Array.from(ws.querySelectorAll('[data-note]')).find(n => n.textContent.includes('Explicit link'));
+    noteEl.click();
     expect(document.getElementById('ntTitle').value).toBe('Explicit link');
     UI.closeModal();
   });

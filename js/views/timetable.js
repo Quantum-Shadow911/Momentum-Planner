@@ -2,8 +2,8 @@
 (function (global) {
   'use strict';
 
-  const START_HOUR = 8;
-  const END_HOUR = 18;
+  const DEFAULT_START_HOUR = 8;
+  const DEFAULT_END_HOUR = 18;
 
   function render(host) {
     const state = Store.get();
@@ -11,10 +11,14 @@
     const weekStart = Utils.startOfWeek(today, state.settings.weekStartsOn);
     const days = [];
     for (let i = 0; i < 7; i++) days.push(Utils.addDays(weekStart, i));
-    const hours = [];
-    for (let h = START_HOUR; h < END_HOUR; h++) hours.push(h);
 
-    const totalSlots = state.classes.reduce((s, c) => s + c.slots.length, 0);
+    const allSlots = state.classes.flatMap(c => c.slots);
+    const startHour = allSlots.length ? Math.min(DEFAULT_START_HOUR, ...allSlots.map(s => Math.floor(Utils.minutesOf(s.start) / 60))) : DEFAULT_START_HOUR;
+    const endHour = allSlots.length ? Math.max(DEFAULT_END_HOUR, ...allSlots.map(s => Math.ceil(Utils.minutesOf(s.end) / 60))) : DEFAULT_END_HOUR;
+    const hours = [];
+    for (let h = startHour; h < endHour; h++) hours.push(h);
+
+    const totalSlots = allSlots.length;
 
     host.innerHTML = `
       <div class="page-head">
@@ -35,11 +39,17 @@
               const cellSlots = [];
               state.classes.forEach(c => c.slots.filter(s => s.day === dow && Utils.minutesOf(s.start) >= h * 60 && Utils.minutesOf(s.start) < (h + 1) * 60).forEach(s => cellSlots.push({ c, s })));
               return `<div class="tt-cell${d === today ? ' tt-today-cell' : ''}">
-                ${cellSlots.map(({ c, s }) => `
-                  <div class="tt-block" data-cls="${H(c.id)}" style="background:${H(c.color)}18;border-color:${H(c.color)}">
+                ${cellSlots.map(({ c, s }) => {
+                  const startMin = Utils.minutesOf(s.start);
+                  const endMin = Math.max(Utils.minutesOf(s.end), startMin + 15);
+                  const top = ((startMin - h * 60) / 60) * 100;
+                  const spanHeight = ((endMin - startMin) / 60) * 100;
+                  return `
+                  <div class="tt-block" data-cls="${H(c.id)}" style="background:${H(c.color)}18;border-color:${H(c.color)};top:${top.toFixed(2)}%;height:${spanHeight.toFixed(2)}%">
                     <div class="tt-block-name">${H(c.icon)} ${H(c.name)}</div>
                     <div class="tt-block-meta">${H(Utils.fmtTime(s.start))}–${H(Utils.fmtTime(s.end))}${c.room ? ' · ' + H(c.room) : ''}</div>
-                  </div>`).join('')}
+                  </div>`;
+                }).join('')}
               </div>`;
             }).join('')}`).join('')}
         </div>

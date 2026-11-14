@@ -125,11 +125,12 @@
       title: `Revision session — ${t.title}`,
       body: `
         <div class="field-row-3">
-          <div class="field"><label>Date</label><input class="input" type="date" id="revDate" value="${H(Utils.addDays(lastDate, 1) || today)}"></div>
+          <div class="field"><label>Date${t.dueDate ? ` (before ${H(Utils.fmtDateSmart(t.dueDate))})` : ''}</label><input class="input" type="date" id="revDate" value="${H(Utils.addDays(lastDate, 1) || today)}"${t.dueDate ? ` max="${H(t.dueDate)}"` : ''}></div>
           <div class="field"><label>Time (optional)</label><input class="input" type="time" id="revTime"></div>
           <div class="field"><label>Duration (min)</label><input class="input" type="number" id="revDur" min="5" step="5" value="45"></div>
         </div>
-        <div class="field"><label>Objective</label><input class="input" id="revObj" placeholder="e.g. Chapter 4 flashcards, past paper…"></div>`,
+        <div class="field"><label>Objective</label><input class="input" id="revObj" placeholder="e.g. Chapter 4 flashcards, past paper…"></div>
+        <div id="revWarn" class="field" style="display:none;color:var(--danger,#d64545);font-size:13px"></div>`,
       buttons: [
         { label: 'Cancel', class: 'btn-ghost', onClick: () => UI.closeModal() },
         {
@@ -137,6 +138,14 @@
           onClick: () => {
             const date = document.getElementById('revDate').value;
             if (!date) return false;
+            if (t.dueDate && date > t.dueDate) {
+              const warn = document.getElementById('revWarn');
+              if (warn) {
+                warn.style.display = 'block';
+                warn.textContent = `That date is after the assessment (${Utils.fmtDateSmart(t.dueDate)}). Pick a day on or before it.`;
+              }
+              return false;
+            }
             Store.addSession(t.id, {
               date,
               time: document.getElementById('revTime').value || null,

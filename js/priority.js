@@ -193,7 +193,11 @@
   function workloadOn(state, dateStr) {
     const taskLoad = state.tasks
       .filter(t => t.status !== 'completed' && t.dueDate === dateStr)
-      .reduce((sum, t) => sum + (t.estimateMin || t.durationMin || 0), 0);
+      .reduce((sum, t) => {
+        const est = t.estimateMin || t.durationMin || 0;
+        const scheduled = (t.sessions || []).reduce((s2, x) => s2 + x.durationMin, 0);
+        return sum + Math.max(0, est - scheduled);
+      }, 0);
     const sessionLoad = sessionsOn(state, dateStr)
       .reduce((sum, e) => sum + e.session.durationMin, 0);
     return { taskLoad, sessionLoad, total: taskLoad + sessionLoad };

@@ -199,6 +199,66 @@ describe('theme & interactions', () => {
     expect(document.querySelectorAll('.tt-block').length).toBeGreaterThanOrEqual(9);
   });
 
+  it('dragging an assignment with sessions in the daily planner moves the session, not the deadline', () => {
+    App.go('daily');
+    const today = Utils.todayStr();
+    const due = Utils.addDays(today, 5);
+    const t = Store.saveTask({ title: 'Draggable assignment', dueDate: due, estimateMin: 90, sessions: [{ date: today, time: '10:00', durationMin: 45 }] });
+    const zone = document.querySelector('.drop-zone[data-hour="16"]');
+    expect(zone).toBeTruthy();
+    const ev = new dom.window.Event('drop', { bubbles: true, cancelable: true });
+    ev.dataTransfer = { getData: () => t.id };
+    zone.dispatchEvent(ev);
+    const after = Store.getTask(t.id);
+    expect(after.dueDate).toBe(due);
+    expect(after.sessions[0].date).toBe(today);
+    expect(after.sessions[0].time).toBe('16:00');
+  });
+
+  it('revision sessions cannot be scheduled after the assessment date', () => {
+    App.go('exams');
+    const exam = Store.get().tasks.find(t => t.title.includes('Chemistry midterm'));
+    expect(exam).toBeTruthy();
+    const before = exam.sessions.length;
+    const card = Array.from(document.querySelectorAll('.exam-card')).find(c => c.textContent.includes('Chemistry midterm'));
+    card.querySelector('[data-rev]').click();
+    document.getElementById('revDate').value = Utils.addDays(exam.dueDate, 2);
+    const addBtn = Array.from(document.querySelectorAll('#modalRoot button')).find(b => b.textContent.trim() === 'Add session');
+    addBtn.click();
+    expect(UI.modalIsOpen()).toBe(true);
+    expect(document.getElementById('revWarn').style.display).toBe('block');
+    expect(Store.getTask(exam.id).sessions.length).toBe(before);
+    document.getElementById('revDate').value = Utils.addDays(exam.dueDate, -1);
+    addBtn.click();
+    expect(UI.modalIsOpen()).toBe(false);
+    expect(Store.getTask(exam.id).sessions.length).toBe(before + 1);
+  });
+
+  it('timetable renders proportional blocks and expands hours for early classes', () => {
+    Store.saveClass({ name: 'Zero period', color: '#8b5cf6', icon: '🌅', slots: [{ day: 3, start: '07:15', end: '08:05' }] });
+    App.go('timetable');
+    const grid = document.getElementById('ttGrid');
+    expect(grid).toBeTruthy();
+    expect(grid.textContent).toContain('7:00 AM');
+    const block = document.querySelector('.tt-block');
+    expect(block.style.top).toContain('%');
+    expect(Number.parseFloat(block.style.height)).toBeGreaterThan(50);
+  });
+
+  it('class workspace lists only explicitly linked notes and opens the clicked note', () => {
+    const cls = Store.get().classes[0];
+    Store.saveNote({ title: 'Explicit link', body: 'formulas', classId: cls.id });
+    Store.saveNote({ title: 'Loose mention', body: 'lorem ' + cls.name + ' ipsum', classId: null });
+    Views.classes.selectClass(cls.id);
+    App.go('classes');
+    const ws = document.getElementById('classWorkspace');
+    expect(ws.textContent).toContain('Explicit link');
+    expect(ws.textContent).not.toContain('Loose mention');
+    ws.querySelector('[data-note]').click();
+    expect(document.getElementById('ntTitle').value).toBe('Explicit link');
+    UI.closeModal();
+  });
+
   it('global search finds seeded tasks', () => {
     App.openSearch();
     const input = document.getElementById('searchInput');

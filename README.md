@@ -11,7 +11,7 @@ npm start          # serves at http://localhost:4173 (zero-dep Node server)
 …or open `index.html` directly in a browser, or host the folder statically (works on GitHub Pages).
 
 ```bash
-npm test           # run the 85-test suite (Vitest + jsdom)
+npm test           # run the 97-test suite (Vitest + jsdom)
 npm run test:watch
 ```
 

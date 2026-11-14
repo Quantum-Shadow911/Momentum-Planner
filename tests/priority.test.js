@@ -102,9 +102,9 @@ describe('selectors & stats', () => {
     expect(wl.sessionLoad).toBe(60);
     expect(wl.total).toBe(60);
     const wlDue = P.workloadOn(st2, '2025-06-06');
-    expect(wlDue.taskLoad).toBe(60);
+    expect(wlDue.taskLoad).toBe(0);
     expect(wlDue.sessionLoad).toBe(0);
-    expect(wlDue.total).toBe(60);
+    expect(wlDue.total).toBe(0);
     const sch = P.schoolStats(st2, today);
     expect(sch.dueSoon).toBe(3);
     expect(sch.assessments).toBe(1);
@@ -120,5 +120,38 @@ describe('selectors & stats', () => {
     expect(st.overdue).toBe(1);
     expect(st.dueToday).toBe(2);
     expect(st.completionPct).toBe(17);
+  });
+});
+
+describe('workload calculation', () => {
+  it('does not double-count assignments whose work is already scheduled as sessions', () => {
+    const state = makeState([
+      { title: 'Project', dueDate: '2025-06-06', estimateMin: 120, sessions: [
+        { date: '2025-06-03', durationMin: 40 },
+        { date: '2025-06-04', durationMin: 40 },
+        { date: '2025-06-05', durationMin: 40 }
+      ] }
+    ]);
+    const wl = P.workloadOn(state, '2025-06-06');
+    expect(wl.taskLoad).toBe(0);
+    expect(wl.total).toBe(0);
+  });
+
+  it('counts only the unscheduled remainder on the deadline day', () => {
+    const state = makeState([
+      { title: 'Project', dueDate: '2025-06-06', estimateMin: 120, sessions: [{ date: '2025-06-04', durationMin: 40 }] },
+      { title: 'Unscheduled', dueDate: '2025-06-06', estimateMin: 30 }
+    ]);
+    expect(P.workloadOn(state, '2025-06-06').taskLoad).toBe(110);
+  });
+
+  it('still counts sessions scheduled on the day itself', () => {
+    const state = makeState([
+      { title: 'Project', dueDate: '2025-06-06', estimateMin: 120, sessions: [{ date: '2025-06-06', durationMin: 40 }] }
+    ]);
+    const wl = P.workloadOn(state, '2025-06-06');
+    expect(wl.sessionLoad).toBe(40);
+    expect(wl.taskLoad).toBe(80);
+    expect(wl.total).toBe(120);
   });
 });

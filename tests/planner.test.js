@@ -162,6 +162,24 @@ describe('store: session moves, spent time and breaks', () => {
     expect(Store.getTask(t.id).actualMin).toBe(35);
   });
 
+  it('toggleSession recalculates actualMin in both directions', () => {
+    const t = Store.saveTask({ title: 'Study', sessions: [{ date: '2025-06-05', durationMin: 30 }, { date: '2025-06-06', durationMin: 40 }] });
+    Store.toggleSession(t.id, t.sessions[0].id);
+    expect(Store.getTask(t.id).actualMin).toBe(30);
+    Store.toggleSession(t.id, t.sessions[1].id);
+    expect(Store.getTask(t.id).actualMin).toBe(70);
+    Store.toggleSession(t.id, t.sessions[0].id);
+    expect(Store.getTask(t.id).actualMin).toBe(40);
+  });
+
+  it('timer-logged time is not double-counted when sessions complete', () => {
+    const t = Store.saveTask({ title: 'Study', sessions: [{ date: '2025-06-05', durationMin: 30 }] });
+    Store.addSpentTime(t.id, 25);
+    expect(Store.getTask(t.id).actualMin).toBe(25);
+    Store.toggleSession(t.id, t.sessions[0].id);
+    expect(Store.getTask(t.id).actualMin).toBe(55);
+  });
+
   it('saveBreak and deleteBreak manage the break list', () => {
     const b = Store.saveBreak({ name: 'Half term', start: '2025-10-27', end: '2025-10-31' });
     expect(b).toBeTruthy();

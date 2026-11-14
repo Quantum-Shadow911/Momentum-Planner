@@ -103,8 +103,19 @@
         const id = e.dataTransfer.getData('text/task-id');
         const t = Store.getTask(id);
         if (!t) return;
-        Store.saveTask({ ...t, dueDate: currentDate, time: hourKey });
-        UI.toast('success', 'Rescheduled', `“${t.title}” → ${Utils.fmtDate(currentDate)} ${Utils.fmtTime(hourKey)}`);
+        if ((t.sessions || []).length > 0) {
+          const undone = t.sessions.filter(s => !s.done).sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
+          if (undone.length) {
+            Store.moveSession(t.id, undone[0].id, currentDate, hourKey);
+            UI.toast('success', 'Study session moved', `“${t.title}” work session → ${Utils.fmtDate(currentDate)} ${Utils.fmtTime(hourKey)} · deadline kept at ${Utils.fmtDate(t.dueDate)}`);
+          } else {
+            Store.addSession(t.id, { date: currentDate, time: hourKey, durationMin: 45, objective: 'Extra work' });
+            UI.toast('success', 'Study session added', `“${t.title}” → ${Utils.fmtDate(currentDate)} ${Utils.fmtTime(hourKey)} · deadline unchanged`);
+          }
+        } else {
+          Store.saveTask({ ...t, dueDate: currentDate, time: hourKey });
+          UI.toast('success', 'Rescheduled', `“${t.title}” → ${Utils.fmtDate(currentDate)} ${Utils.fmtTime(hourKey)}`);
+        }
       });
       const hourTasks = timed.filter(t => parseInt(t.time.slice(0, 2), 10) === h);
       hourTasks.forEach(t => {

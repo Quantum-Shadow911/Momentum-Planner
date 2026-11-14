@@ -56,6 +56,11 @@
     const title = str(t.title).trim();
     if (!title) return null;
     const now = new Date().toISOString();
+    const sessions = arr(t.sessions).map(normalizeSession).filter(Boolean).slice(0, 40);
+    const doneSessionMin = sessions.filter(s => s.done).reduce((sum, s) => sum + s.durationMin, 0);
+    const manualMin = isFinite(Number(t.manualMin))
+      ? Math.max(0, Math.round(Number(t.manualMin)))
+      : Math.max(0, num(t.actualMin, 0) - doneSessionMin);
     return {
       id: str(t.id) || Utils.uid('task'),
       title: title.slice(0, 300),
@@ -68,7 +73,8 @@
       categoryId: str(t.categoryId) || null,
       tags: arr(t.tags).filter(x => typeof x === 'string').map(x => x.trim().slice(0, 30)).filter(Boolean).slice(0, 12),
       estimateMin: num(t.estimateMin, 0),
-      actualMin: num(t.actualMin, 0),
+      manualMin,
+      actualMin: manualMin + doneSessionMin,
       subtasks: arr(t.subtasks).map(s => ({
         id: str(s.id) || Utils.uid('sub'),
         title: str(s.title).trim().slice(0, 300) || 'Untitled step',
@@ -78,7 +84,7 @@
       classId: str(t.classId) || null,
       assignmentType: ASSIGNMENT_TYPES.includes(t.assignmentType) ? t.assignmentType : 'general',
       submission: SUBMISSION_STATES.includes(t.submission) ? t.submission : (t.status === 'completed' ? 'submitted' : 'not-started'),
-      sessions: arr(t.sessions).map(normalizeSession).filter(Boolean).slice(0, 40),
+      sessions,
       attachments: arr(t.attachments).map(normalizeAttachment).filter(Boolean).slice(0, 8),
       reminders: arr(t.reminders).map(n => num(n, null)).filter(n => n != null && n >= 0 && n <= 10080).slice(0, 5),
       links: arr(t.links).map(l => ({ label: str(l.label).slice(0, 120), url: str(l.url).slice(0, 1000) })).filter(l => l.url).slice(0, 10),
@@ -264,6 +270,7 @@
     out.browserNotifications = bool(s.browserNotifications);
     out.reminderDefault = Utils.clamp(num(s.reminderDefault, 30), 0, 10080);
     out.hideCompleted = bool(s.hideCompleted);
+    out.dailyLoadLimit = Utils.clamp(num(s.dailyLoadLimit, out.dailyLoadLimit || 180), 15, 720);
     out.seeded = bool(s.seeded);
     if (typeof s.lastVersion === 'string') out.lastVersion = s.lastVersion.slice(0, 40);
     return out;

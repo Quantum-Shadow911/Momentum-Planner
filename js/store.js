@@ -329,13 +329,19 @@
 
   /* ================= Work sessions ================= */
 
+  function recalcActualMin(t) {
+    const doneMin = (t.sessions || []).filter(s => s.done).reduce((sum, s) => sum + s.durationMin, 0);
+    t.manualMin = Math.max(0, Math.round(t.manualMin || 0));
+    t.actualMin = t.manualMin + doneMin;
+  }
+
   function toggleSession(taskId, sessionId) {
     const t = getTask(taskId);
     if (!t) return;
     const s = t.sessions.find(x => x.id === sessionId);
     if (!s) return;
     s.done = !s.done;
-    if (s.done && !t.actualMin) t.actualMin = t.sessions.filter(x => x.done).reduce((sum, x) => sum + x.durationMin, 0);
+    recalcActualMin(t);
     t.updatedAt = new Date().toISOString();
     update(s2 => s2, { type: 'session-toggled' });
   }
@@ -375,7 +381,8 @@
     const t = getTask(taskId);
     const mins = Math.round(Number(minutes));
     if (!t || !isFinite(mins) || mins <= 0) return;
-    t.actualMin = (t.actualMin || 0) + mins;
+    t.manualMin = Math.max(0, Math.round(t.manualMin || 0)) + mins;
+    recalcActualMin(t);
     t.updatedAt = new Date().toISOString();
     logActivity('progress', `Tracked ${Utils.fmtDuration(mins)} on “${t.title}”`);
     update(s2 => s2, { type: 'time-logged', id: taskId });

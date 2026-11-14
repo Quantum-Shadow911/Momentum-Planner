@@ -225,3 +225,22 @@ describe('store actions & recurrence', () => {
     expect(Store.projectProgress(Store.getProject(p.id))).toBe(75);
   });
 });
+
+describe('settings persistence and legacy time migration', () => {
+  it('preserves dailyLoadLimit when loading saved settings', () => {
+    const st = S.normalize({ settings: { dailyLoadLimit: 240 } });
+    expect(st.settings.dailyLoadLimit).toBe(240);
+  });
+
+  it('clamps dailyLoadLimit to a sane range and defaults to 180', () => {
+    expect(S.normalize({ settings: { dailyLoadLimit: 9999 } }).settings.dailyLoadLimit).toBe(720);
+    expect(S.normalize({ settings: { dailyLoadLimit: 1 } }).settings.dailyLoadLimit).toBe(15);
+    expect(S.normalize({}).settings.dailyLoadLimit).toBe(180);
+  });
+
+  it('migrates legacy actualMin into manualMin without double-counting done sessions', () => {
+    const t = S.normalizeTask({ title: 'Legacy', actualMin: 100, sessions: [{ date: '2025-06-05', durationMin: 40, done: true }] });
+    expect(t.manualMin).toBe(60);
+    expect(t.actualMin).toBe(100);
+  });
+});

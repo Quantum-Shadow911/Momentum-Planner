@@ -94,7 +94,7 @@
     const tests = open.filter(t => Priority.isAssessment(t));
     const work = open.filter(t => !Priority.isAssessment(t));
     const done = tasks.filter(t => t.status === 'completed');
-    const classNotes = state.notes.filter(n => n.classId === c.id || (n.body + ' ' + n.title).toLowerCase().includes(c.name.toLowerCase()));
+    const classNotes = state.notes.filter(n => n.classId === c.id);
 
     ws.innerHTML = `
       <div class="card" style="border-color:${H(c.color)}">
@@ -136,7 +136,7 @@
     ws.querySelector('#wsClose').addEventListener('click', () => { selectedClassId = null; render(host); });
     ws.querySelector('#wsAddWork').addEventListener('click', () => UI.openTaskEditor(null, { classId: c.id, assignmentType: 'homework' }));
     ws.querySelector('#wsAddTest').addEventListener('click', () => UI.openTaskEditor(null, { classId: c.id, assignmentType: 'test' }));
-    ws.querySelectorAll('[data-note]').forEach(el => el.addEventListener('click', () => App.go('notes')));
+    ws.querySelectorAll('[data-note]').forEach(el => el.addEventListener('click', () => { App.go('notes'); Views.notes.openNoteEditor(el.dataset.note); }));
   }
 
   function openClassEditor(classId) {

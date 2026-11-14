@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.3.0-school-schedule';
+  const APP_VERSION = '2.3.1-school-schedule';
 
   const NAV = [
     { section: 'Overview' },
@@ -241,7 +241,6 @@
       { id: 'cls-reading', name: 'Reading 6', teacher: 'Mrs. Kaplenko', room: 'C 102', period: '05', color: '#f59e0b', icon: '📖', slots: daily('11:57', '12:43') },
       { id: 'cls-la', name: 'Language Arts 6', teacher: 'Mrs. Kaplenko', room: 'C 102', period: '06', color: '#f97316', icon: '✏️', slots: daily('12:43', '13:29') },
       { id: 'cls-ss', name: 'Social Studies 6', teacher: 'Mrs. Kaplenko', room: 'C 102', period: '07', color: '#eab308', icon: '🌍', slots: daily('13:29', '14:15') },
-      { id: 'cls-advisory', name: 'Advisory', teacher: 'Mrs. Kaplenko', room: 'C 102', period: 'Adv Fri', color: '#64748b', icon: '🤝', slots: [{ day: 5, start: '14:15', end: '14:45' }] }
     ];
     classes.forEach(c => Store.saveClass(c));
 

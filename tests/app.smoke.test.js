@@ -65,11 +65,11 @@ describe('app boot', () => {
   it('boots with seeded sample data and renders the dashboard', () => {
     expect(Store.get().tasks.length).toBe(0);
     expect(Store.get().categories.length).toBe(9);
-    expect(Store.get().classes.length).toBe(8);
+    expect(Store.get().classes.length).toBe(7);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.3.0-school-schedule');
-    expect(Store.get().settings.lastVersion).toBe('2.3.0-school-schedule');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.3.1-school-schedule');
+    expect(Store.get().settings.lastVersion).toBe('2.3.1-school-schedule');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(12);
     expect(document.getElementById('viewHost').innerHTML).toContain('Recommended next task');
@@ -79,7 +79,7 @@ describe('app boot', () => {
 
   it('dashboard renders the school-portal layout: schedule panel, to-do, exams, dates, calendar', () => {
     expect(document.querySelector('.dash-grid')).toBeTruthy();
-    expect(document.querySelectorAll('#dashPeriods .period-row').length).toBe(8);
+    expect(document.querySelectorAll('#dashPeriods .period-row').length).toBe(7);
     expect(document.getElementById('dashPeriods').textContent).toContain('Mrs. Khichadia');
     expect(document.getElementById('dashPeriods').textContent).toContain('Mrs. Pratt');
     expect(document.getElementById('dashPeriods').textContent).toContain('Mrs. Kaplenko');

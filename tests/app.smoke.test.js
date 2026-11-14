@@ -76,8 +76,8 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(7);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.2-fresh-accounts');
-    expect(Store.get().settings.lastVersion).toBe('2.4.2-fresh-accounts');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.3-danger-corner');
+    expect(Store.get().settings.lastVersion).toBe('2.4.3-danger-corner');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(12);
     const navViews = [...document.querySelectorAll('.nav-item')].map(b => b.dataset.view);
@@ -393,6 +393,14 @@ describe('v2.1.0 app-level features', () => {
     const meter = document.getElementById('storageMeter');
     expect(meter).toBeTruthy();
     expect(meter.textContent).toContain('storage used');
+  });
+
+  it('danger zone is pinned to the corner and offers account deletion', () => {
+    App.go('settings');
+    const dz = document.querySelector('.danger-corner');
+    expect(dz).toBeTruthy();
+    expect(dz.querySelector('#deleteAccount').textContent).toContain('Delete account');
+    expect(dz.querySelector('#resetAll')).toBeTruthy();
   });
 
   it('daily planner shows a conflict banner for overlapping commitments', () => {

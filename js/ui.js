@@ -87,10 +87,20 @@
     return new Promise(resolve => {
       openModal({
         title: opts.title || 'Are you sure?',
-        body: `<p style="margin:0;color:var(--text-2)">${H(opts.message || '')}</p>`,
+        body: `<p style="margin:0;color:var(--text-2)">${H(opts.message || '')}</p>` +
+          (opts.requireText ? `<div class="field" style="margin-top:12px"><label>Type <strong>${H(opts.requireText)}</strong> to confirm</label><input class="input" id="confirmText" autocomplete="off" spellcheck="false"></div>` : ''),
         buttons: [
           { label: opts.cancelLabel || 'Cancel', class: 'btn-ghost', onClick: () => { closeModal(); resolve(false); } },
-          { label: opts.confirmLabel || 'Confirm', class: opts.danger ? 'btn-danger' : 'btn-primary', onClick: () => { closeModal(); resolve(true); } }
+          { label: opts.confirmLabel || 'Confirm', class: opts.danger ? 'btn-danger' : 'btn-primary', onClick: () => {
+            if (opts.requireText) {
+              const inp = document.getElementById('confirmText');
+              if (!inp || inp.value.trim().toLowerCase() !== opts.requireText.toLowerCase()) {
+                if (inp) inp.style.borderColor = 'var(--red)';
+                return;
+              }
+            }
+            closeModal(); resolve(true);
+          } }
         ],
         onCloseForce: () => resolve(false)
       });

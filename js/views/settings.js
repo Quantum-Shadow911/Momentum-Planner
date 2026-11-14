@@ -206,14 +206,15 @@
           <button class="btn btn-sm btn-primary" id="brkAdd">＋ Add break</button>
         </div>
 
-        <div class="card" style="grid-column:1/-1;border-color:var(--red)">
+        <div class="card danger-corner">
           <div class="card-title"><span style="color:var(--red)">⚠ Danger zone</span></div>
           <div class="row-wrap">
-            <button class="btn btn-danger" id="loadSample">Load sample data</button>
-            <button class="btn btn-danger" id="resetAll">Delete ALL data…</button>
+            <button class="btn btn-sm btn-danger" id="loadSample">Load sample data</button>
+            <button class="btn btn-sm btn-danger" id="resetAll">Delete ALL data…</button>
+            <button class="btn btn-sm btn-danger" id="deleteAccount">Delete account…</button>
           </div>
-          <p class="muted small" style="margin-bottom:0">Loading sample data adds example tasks, projects and goals (existing data is kept). Deleting all data requires confirmation and cannot be undone — export a backup first.</p>
         </div>
+        <div style="height:130px"></div>
       </div>
     `;
 
@@ -411,6 +412,21 @@
         confirmLabel: 'Load samples'
       });
       if (ok) { App.loadSampleData(); UI.toast('success', 'Sample data loaded', 'Explore the dashboard, planner views and analytics.'); }
+    });
+    host.querySelector('#deleteAccount').addEventListener('click', async () => {
+      const prof = Auth.sessionProfile();
+      if (!prof) return;
+      const ok = await UI.confirmDialog({
+        title: 'Delete this account?',
+        message: `This permanently deletes the account "${prof.name}" and ALL of its data — tasks, classes, events, everything. This cannot be undone. Export a backup first!`,
+        requireText: prof.name,
+        confirmLabel: 'Delete account forever', danger: true
+      });
+      if (!ok) return;
+      const res = Auth.deleteProfile(prof.id, prof.name);
+      if (res.error) { UI.toast('danger', 'Could not delete', res.error); return; }
+      Auth.logout();
+      App.boot();
     });
     host.querySelector('#resetAll').addEventListener('click', async () => {
       const ok = await UI.confirmDialog({

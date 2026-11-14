@@ -123,10 +123,14 @@ describe('account data layer', () => {
     expect(Auth.login('alex', '5678')).toBe(true);
   });
 
-  it('accounts cannot be deleted', () => {
+  it('deleteAccount requires typing the name and removes account data', () => {
     const prof = Auth.createProfile(acct({ name: 'Temp Person', username: 'temp', email: 'temp@example.com' })).profile;
-    expect(Auth.deleteProfile).toBeUndefined();
-    expect(Auth.profiles().some(p => p.id === prof.id)).toBe(true);
+    Storage.setProfile(prof.id);
+    Storage.save(Storage.emptyState());
+    expect(Auth.deleteProfile(prof.id, 'wrong').error).toBeTruthy();
+    expect(Auth.deleteProfile(prof.id, 'temp person').ok).toBe(true);
+    expect(Auth.profiles().some(p => p.id === prof.id)).toBe(false);
+    expect(dom.window.localStorage.getItem('momentum.data.v1.' + prof.id)).toBeNull();
   });
 
   it('new accounts start completely fresh (no sample classes or tasks)', () => {

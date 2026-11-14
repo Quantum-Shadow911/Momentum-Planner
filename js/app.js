@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.4.2-fresh-accounts';
+  const APP_VERSION = '2.4.3-danger-corner';
 
   const NAV = [
     { section: 'Overview' },

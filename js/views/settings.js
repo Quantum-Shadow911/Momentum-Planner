@@ -166,6 +166,15 @@
         </div>
 
         <div class="card">
+          <div class="card-title"><span>📲 Install as an app</span></div>
+          <p class="muted small" style="margin-top:0">Momentum can live in your Dock (Mac) or Home Screen (iPhone/iPad) with its own icon and full-screen window — no App Store needed.</p>
+          <div class="settings-row"><div><div class="s-label">Mac — Safari</div><div class="s-desc">Open the planner → <strong>Share</strong> button (or File menu) → <strong>Add to Dock…</strong></div></div></div>
+          <div class="settings-row"><div><div class="s-label">Mac — Chrome / Edge</div><div class="s-desc">Click the install icon (computer with ↓) at the right end of the address bar → <strong>Install</strong></div></div></div>
+          <div class="settings-row"><div><div class="s-label">iPhone / iPad</div><div class="s-desc">In Safari: <strong>Share</strong> → scroll down → <strong>Add to Home Screen</strong></div></div></div>
+          <div class="settings-row" style="margin-bottom:0"><div><div class="s-label">Good to know</div><div class="s-desc">Each device keeps its own data in that browser — there's no cross-device sync. The app works offline once installed; sign in with the same account name to keep it familiar.</div></div></div>
+        </div>
+
+        <div class="card">
           <div class="card-title"><span>💾 Data — backup & restore</span></div>
           <p class="muted small" style="margin-top:0">Everything is stored locally in your browser (localStorage) and saved automatically after every change. Rolling snapshots of your last ${5} saves are kept for recovery.</p>
           <div class="row-wrap">

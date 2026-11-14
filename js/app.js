@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.4.5-task-fix';
+  const APP_VERSION = '2.4.6-pwa';
 
   const NAV = [
     { section: 'Overview' },
@@ -345,6 +345,9 @@
     Store.subscribe(rerender);
     Store.subscribe(updateSaveStatus);
     Reminders.start();
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      try { navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) { /* not available */ }
+    }
     Timer.init();
     Timer.onTick(renderTimerWidget);
 

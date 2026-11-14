@@ -11,14 +11,17 @@
     { section: 'School' },
     { id: 'classes', icon: '📘', label: 'My Classes' },
     { id: 'tasks', icon: '✅', label: 'Assignments' },
+    { id: 'exams', icon: '📄', label: 'Exams & Quizzes' },
     { id: 'daily', icon: '📅', label: 'Daily Planner' },
     { id: 'weekly', icon: '🗓️', label: 'Weekly Planner' },
     { id: 'monthly', icon: '📆', label: 'Calendar' },
+    { id: 'timetable', icon: '🗓️', label: 'Timetable' },
     { id: 'agenda', icon: '📋', label: 'Agenda' },
     { id: 'kanban', icon: '🗂️', label: 'Kanban Board' },
     { id: 'projects', icon: '📁', label: 'Projects' },
     { section: 'Activities' },
     { id: 'activities', icon: '⭐', label: 'Activities & Events' },
+    { id: 'personal', icon: '🏠', label: 'Other Responsibilities' },
     { section: 'Personal' },
     { id: 'goals', icon: '🎯', label: 'Goals' },
     { id: 'notes', icon: '📝', label: 'Notes' },
@@ -50,7 +53,11 @@
     if (!Views[view]) view = 'dashboard';
     if (view === 'inbox') {
       view = 'tasks';
-      if (Views.tasks.preset) Views.tasks.preset({ status: 'undated' });
+      if (Views.tasks.preset) Views.tasks.preset({ status: 'undated', cls: '', sub: '' });
+    }
+    if (view === 'personal') {
+      view = 'tasks';
+      if (Views.tasks.preset) Views.tasks.preset({ status: 'open', cls: 'none', sub: '' });
     }
     currentView = view;
     const host = document.getElementById('viewHost');
@@ -225,6 +232,12 @@
     ];
     events.forEach(e => Store.saveEvent(e));
 
+    Store.saveBreak({
+      name: 'Winter break',
+      start: Utils.addMonths(today, 1).slice(0, 8) + '20',
+      end: Utils.addMonths(Utils.addMonths(today, 1), 1).slice(0, 8) + '02'
+    });
+
     Store.saveGoal({
       name: 'Make the honor roll this semester', icon: '🎓', color: '#8b5cf6',
       description: 'Keep every class at B+ or above and ace the finals.',
@@ -252,7 +265,7 @@
       taskIds: Store.get().tasks.filter(t => t.title === 'History essay outline').map(t => t.id)
     });
     Store.saveNote({
-      title: 'Study techniques that work for me', color: '#10b981',
+      title: 'Study techniques that work for me', color: '#10b981', classId: 'cls-sci',
       body: 'Pomodoro 25/5 works best after 4pm.\nFlashcards for chemistry formulas.\nTeach concepts out loud to check understanding.',
       projectIds: [projId]
     });
@@ -285,11 +298,47 @@
     Store.subscribe(rerender);
     seedIfEmpty();
     Reminders.start();
+    Timer.init();
+    Timer.onTick(renderTimerWidget);
+    renderTimerWidget();
     go('dashboard');
 
     window.addEventListener('resize', Utils.debounce(() => {
       if (currentView === 'analytics' && !UI.modalIsOpen()) Views.analytics.render(document.getElementById('viewHost'));
     }, 250));
+  }
+
+  /* ---------- Study timer widget ---------- */
+  function renderTimerWidget() {
+    let root = document.getElementById('timerWidget');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'timerWidget';
+      root.className = 'timer-widget hidden';
+      document.body.appendChild(root);
+    }
+    const st = Timer.status();
+    if (!st.active) { root.classList.add('hidden'); root.innerHTML = ''; return; }
+    root.classList.remove('hidden');
+    const mm = String(Math.floor(st.elapsedSec / 60)).padStart(2, '0');
+    const ss = String(st.elapsedSec % 60).padStart(2, '0');
+    root.innerHTML = `
+      <div class="timer-main">
+        <div class="timer-time">${st.running ? '\u23F1' : '\u23F8'} ${mm}:${ss}</div>
+        <div class="timer-title">${H(st.title)}</div>
+      </div>
+      <div class="timer-btns">
+        <button class="icon-btn" data-tt title="${st.running ? 'Pause' : 'Resume'}">${st.running ? '\u23F8' : '\u25B6\uFE0F'}</button>
+        <button class="icon-btn" data-tf title="Finish & log time">\u2705</button>
+        <button class="icon-btn" data-tx title="Discard">\u2715</button>
+      </div>`;
+    root.querySelector('[data-tt]').addEventListener('click', () => Timer.toggle());
+    root.querySelector('[data-tf]').addEventListener('click', () => {
+      const res = Timer.finish();
+      if (res && res.committed) UI.toast('success', 'Time logged \u23F1', `${Utils.fmtDuration(res.minutes)} added to \u201C${res.title}\u201D.`);
+      else if (res) UI.toast('info', 'Timer finished', 'The task no longer exists \u2014 time was discarded.');
+    });
+    root.querySelector('[data-tx]').addEventListener('click', () => Timer.cancel());
   }
 
   const App = { boot, go, setTheme, openTask: id => UI.openTaskViewer(id), loadSampleData, openSearch };

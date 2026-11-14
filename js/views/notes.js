@@ -53,7 +53,8 @@
             </div>
           </div>
           <div class="note-body">${H(n.body)}</div>
-          ${(linkedTasks.length || linkedProjects.length) ? `<div class="note-links">
+          ${(linkedTasks.length || linkedProjects.length || n.classId) ? `<div class="note-links">
+            ${(cur.classes.find(c => c.id === n.classId) ? [`<span class="tag-chip" data-cls="${H(n.classId)}" style="cursor:pointer">📘 ${H(cur.classes.find(c => c.id === n.classId).name)}</span>`] : []).join('')}
             ${linkedTasks.map(t => `<span class="tag-chip" data-task="${H(t.id)}" style="cursor:pointer">✓ ${H(t.title.slice(0, 24))}</span>`).join('')}
             ${linkedProjects.map(p => `<span class="tag-chip" data-proj="${H(p.id)}" style="cursor:pointer">📁 ${H(p.name.slice(0, 24))}</span>`).join('')}
           </div>` : ''}
@@ -66,6 +67,7 @@
         });
         card.querySelectorAll('[data-task]').forEach(el => el.addEventListener('click', () => UI.openTaskViewer(el.dataset.task)));
         card.querySelectorAll('[data-proj]').forEach(el => el.addEventListener('click', () => App.go('projects')));
+        card.querySelectorAll('[data-cls]').forEach(el => el.addEventListener('click', () => { if (Views.classes.selectClass) Views.classes.selectClass(el.dataset.cls); App.go('classes'); }));
         grid.appendChild(card);
       });
     }
@@ -76,7 +78,7 @@
   function openNoteEditor(noteId) {
     const state = Store.get();
     const n = noteId ? state.notes.find(x => x.id === noteId) : null;
-    const base = n || { title: '', body: '', color: '#f59e0b', pinned: false, taskIds: [], projectIds: [] };
+    const base = n || { title: '', body: '', color: '#f59e0b', pinned: false, taskIds: [], projectIds: [], classId: null };
 
     UI.openModal({
       title: n ? 'Edit note' : 'New note',
@@ -88,6 +90,12 @@
             <div class="row-wrap" id="ntColors">${UI.COLOR_SWATCHES.map(c => `<button type="button" data-c="${c}" style="width:26px;height:26px;border-radius:50%;background:${c};border:${c === base.color ? '3px solid var(--text)' : '2px solid var(--border)'}"></button>`).join('')}</div></div>
         </div>
         <div class="field"><label>Note</label><textarea class="textarea" id="ntBody" style="min-height:160px" placeholder="Write anything: instructions, research links, reminders…">${H(base.body)}</textarea></div>
+        <div class="field"><label>Link to class</label>
+          <select class="select" id="ntClass">
+            <option value="">None</option>
+            ${state.classes.map(c => `<option value="${H(c.id)}" ${base.classId === c.id ? 'selected' : ''}>${H(c.icon)} ${H(c.name)}</option>`).join('')}
+          </select>
+        </div>
         ${state.tasks.length || state.projects.length ? `
         <div class="field-row">
           <div class="field"><label>Link to tasks</label>
@@ -112,7 +120,8 @@
               color: selectedColor || base.color,
               pinned: n ? n.pinned : false,
               taskIds: Array.from(document.querySelectorAll('#ntTask option:checked')).map(o => o.value),
-              projectIds: Array.from(document.querySelectorAll('#ntProj option:checked')).map(o => o.value)
+              projectIds: Array.from(document.querySelectorAll('#ntProj option:checked')).map(o => o.value),
+              classId: document.getElementById('ntClass') ? document.getElementById('ntClass').value || null : null
             });
             UI.toast('success', n ? 'Note saved' : 'Note created', title || 'Untitled note');
             UI.closeModal();

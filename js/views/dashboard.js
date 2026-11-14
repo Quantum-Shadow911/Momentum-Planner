@@ -65,7 +65,8 @@
           </div>
           ${overdue.length ? `
           <div class="card" style="border-color:var(--red)">
-            <div class="card-title"><span style="color:var(--red)">⚠ Overdue (${overdue.length})</span></div>
+            <div class="card-title"><span style="color:var(--red)">⚠ Overdue (${overdue.length})</span>
+              <button class="link-btn" id="dashResched" title="Move overdue work to realistic new days">⚖ Smart reschedule…</button></div>
             <div class="today-col" id="dashOverdue"></div>
           </div>` : ''}
           <div class="card">
@@ -125,12 +126,24 @@
     }
 
     fillList(host.querySelector('#dashToday'), todays.length ? todays : null,
-      'Nothing scheduled for today.<br>Use quick add above to plan your day.');
-    fillList(host.querySelector('#dashOverdue'), overdue.slice(0, 5));
+      'Nothing scheduled for today.<br>Use quick add above to plan your day.', '🌤️');
+    fillList(host.querySelector('#dashOverdue'), overdue.slice(0, 5), null, '⚠️');
     fillList(host.querySelector('#dashUpcoming'), dueSoon.length ? dueSoon.slice(0, 8) : null,
-      'No deadlines in the next 7 days.');
-    fillList(host.querySelector('#dashTests'), assessments.slice(0, 5));
-    fillList(host.querySelector('#dashDone'), recentlyDone);
+      'No deadlines in the next 7 days.', '📅');
+    fillList(host.querySelector('#dashTests'), assessments.slice(0, 5), null, '📄');
+    fillList(host.querySelector('#dashDone'), recentlyDone, null, '✅');
+
+    const reschedBtn = host.querySelector('#dashResched');
+    if (reschedBtn) reschedBtn.addEventListener('click', () => {
+      UI.openSuggestionModal({
+        title: '⚖ Smart reschedule',
+        intro: 'Overdue assignments and missed study sessions get a realistic new day — the lightest of today and the next few days, skipping school breaks. Nothing changes until you apply.',
+        suggestions: Planner.suggestReschedule(Store.get()),
+        noneTitle: 'Nothing overdue',
+        noneMsg: 'No overdue work to reschedule.',
+        appliedTitle: 'Overdue work rescheduled'
+      });
+    });
 
     /* sessions today */
     const sesHost = host.querySelector('#dashSessions');
@@ -231,9 +244,9 @@
     host.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => App.go(b.dataset.go)));
   }
 
-  function fillList(el, items, emptyHtml) {
+  function fillList(el, items, emptyHtml, emptyIcon) {
     if (!el) return;
-    if (!items) { el.innerHTML = `<div class="empty"><span class="empty-icon">🌤️</span>${emptyHtml || 'Nothing here.'}</div>`; return; }
+    if (!items) { el.innerHTML = `<div class="empty"><span class="empty-icon">${emptyIcon || '🌤️'}</span>${emptyHtml || 'Nothing here.'}</div>`; return; }
     items.forEach(t => el.appendChild(UI.taskItem(t)));
   }
 

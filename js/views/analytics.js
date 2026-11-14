@@ -41,6 +41,32 @@
       value: state.tasks.filter(t => t.priority === p && t.status !== 'completed').length
     }));
 
+    /* ---- school metrics ---- */
+    const classData = state.classes.map(c => {
+      const tasks = state.tasks.filter(t => t.classId === c.id);
+      const done = tasks.filter(t => t.status === 'completed' || t.submission === 'submitted').length;
+      return { label: `${c.icon} ${c.name}`, value: done, max: tasks.length, color: c.color, total: tasks.length };
+    }).filter(c => c.total > 0);
+
+    const subCounts = Storage.SUBMISSION_STATES.map(s => ({
+      label: { 'not-started': 'Not started', working: 'Working', ready: 'Ready', submitted: 'Submitted' }[s],
+      value: state.tasks.filter(t => t.submission === s && t.status !== 'completed').length
+    }));
+
+    const sessionTrend = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = Utils.addDays(today, -i);
+      const doneMin = state.tasks.reduce((sum, t) => sum + (t.sessions || []).filter(s => s.done && s.date === d).reduce((x, s) => x + s.durationMin, 0), 0);
+      sessionTrend.push({ label: i % 2 === 0 ? Utils.fmtDate(d).replace(', ' + d.slice(0, 4), '').split(' ')[1] : '', value: Math.round(doneMin / 5) / 12, date: d });
+    }
+
+    const workloadWeek = [];
+    for (let i = 0; i < 7; i++) {
+      const d = Utils.addDays(today, i);
+      const load = Priority.workloadOn(state, d).total;
+      workloadWeek.push({ label: Utils.DOW_SHORT[Utils.parseDate(d).getDay()], value: load, color: load > (state.settings.dailyLoadLimit || 180) ? 'var(--red)' : 'var(--accent)' });
+    }
+
     host.innerHTML = `
       <div class="page-head">
         <div><h2>Productivity Analytics</h2><div class="sub">Every number here is computed from your actual saved tasks.</div></div>
@@ -81,6 +107,30 @@
         </div>
       </div>
 
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title"><span>🎓 School progress</span></div>
+        ${classData.length ? '<div class="chart-wrap"><canvas id="clsChart"></canvas></div><div class="muted small" style="margin-top:8px">Completed or submitted work per class</div>'
+          : '<div class="empty"><span class="empty-icon">📚</span>Add classes in My Classes and assign schoolwork to see per-subject progress.</div>'}
+      </div>
+
+      <div class="grid grid-2" style="margin-bottom:16px">
+        <div class="card">
+          <div class="card-title"><span>🧠 Study time — last 14 days</span></div>
+          <div class="chart-wrap"><canvas id="sesChart"></canvas></div>
+          <div class="muted small" style="margin-top:8px">Hours of completed study sessions per day</div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>⚖ Workload — next 7 days</span></div>
+          <div class="heat-row" style="height:120px;align-items:flex-end">
+            ${(() => {
+              const max = Math.max(60, ...workloadWeek.map(w => w.value));
+              return workloadWeek.map(w => `<div class="heat-cell" style="height:${Math.max(4, Math.round((w.value / max) * 100))}%;${w.value > (state.settings.dailyLoadLimit || 180) ? 'background:var(--red)' : ''}" title="${w.label}: ${Utils.fmtDuration(w.value)}"><strong>${w.label}</strong></div>`).join('');
+            })()}
+          </div>
+          <div class="muted small" style="margin-top:8px">Red bars exceed your ${Utils.fmtDuration(state.settings.dailyLoadLimit || 180)} daily limit — use ⚖ Balance workload in the weekly planner.</div>
+        </div>
+      </div>
+
       <div class="grid grid-2">
         <div class="card">
           <div class="card-title"><span>📊 Historical completion by weekday</span></div>
@@ -99,6 +149,17 @@
           <div class="muted small" style="margin-top:8px">Keep “Urgent” rare — if everything is urgent, nothing is.</div>
         </div>
       </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-title"><span>📮 Submission pipeline (open assignments)</span></div>
+        <div class="heat-row" style="height:90px;align-items:flex-end">
+          ${(() => {
+            const max = Math.max(1, ...subCounts.map(s => s.value));
+            const cols = ['var(--surface-3)', 'var(--accent)', 'var(--amber)', 'var(--green)'];
+            return subCounts.map((s, i) => `<div class="heat-cell" style="height:${Math.max(4, Math.round((s.value / max) * 100))}%;background:${cols[i]}" title="${s.label}: ${s.value}"><strong>${s.value}</strong><span class="small">${s.label}</span></div>`).join('');
+          })()}
+        </div>
+      </div>
     `;
 
     Charts.lineChart(host.querySelector('#trendChart'), trend, { height: 200 });
@@ -108,6 +169,8 @@
     ], { centerBig: st.completionPct + '%', centerSmall: 'complete' });
     if (catData.length) Charts.barChart(host.querySelector('#catChart'), catData, { labelWidth: 150 });
     if (projData.length) Charts.barChart(host.querySelector('#projChart'), projData, { labelWidth: 150 });
+    if (classData.length) Charts.barChart(host.querySelector('#clsChart'), classData, { labelWidth: 150 });
+    Charts.lineChart(host.querySelector('#sesChart'), sessionTrend, { height: 200 });
     Charts.barChart(host.querySelector('#prioChart'), prioCounts.map((p, i) => ({
       ...p, color: ['var(--prio-urgent)', 'var(--prio-high)', 'var(--prio-medium)', 'var(--prio-low)'][i]
     })), { labelWidth: 90 });

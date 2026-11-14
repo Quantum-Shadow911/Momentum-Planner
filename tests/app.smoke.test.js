@@ -32,12 +32,16 @@ globalThis.H = dom.window.H;
 await import('../js/storage.js');
 await import('../js/store.js');
 await import('../js/priority.js');
+await import('../js/planner.js');
+await import('../js/timer.js');
 await import('../js/charts.js');
 await import('../js/reminders.js');
 await import('../js/ui.js');
 await import('../js/views/dashboard.js');
 await import('../js/views/classes.js');
 await import('../js/views/activities.js');
+await import('../js/views/exams.js');
+await import('../js/views/timetable.js');
 await import('../js/views/tasks.js');
 await import('../js/views/daily.js');
 await import('../js/views/weekly.js');
@@ -50,7 +54,7 @@ await import('../js/views/analytics.js');
 await import('../js/views/notes.js');
 await import('../js/views/settings.js');
 
-for (const k of ['Utils', 'H', 'Storage', 'Store', 'Priority', 'Charts', 'Reminders', 'UI', 'Views']) {
+for (const k of ['Utils', 'H', 'Storage', 'Store', 'Priority', 'Planner', 'Timer', 'Charts', 'Reminders', 'UI', 'Views']) {
   globalThis[k] = dom.window[k];
 }
 await import('../js/app.js');
@@ -69,7 +73,8 @@ describe('app boot', () => {
     expect(Store.get().categories.length).toBe(9);
     expect(Store.get().classes.length).toBe(4);
     expect(Store.get().events.length).toBe(5);
-    expect(document.querySelectorAll('.nav-item').length).toBe(15);
+    expect(Store.get().breaks.length).toBe(1);
+    expect(document.querySelectorAll('.nav-item').length).toBe(18);
     expect(document.getElementById('viewHost').innerHTML).toContain('Recommended next task');
     expect(document.getElementById('viewHost').innerHTML).toContain("Today's priorities");
     expect(document.getElementById('viewHost').innerHTML).toContain('Extracurricular schedule');
@@ -82,7 +87,7 @@ describe('app boot', () => {
 });
 
 describe('all views render without errors', () => {
-  const viewIds = ['classes', 'activities', 'daily', 'weekly', 'monthly', 'agenda', 'kanban', 'tasks', 'projects', 'goals', 'analytics', 'notes', 'settings'];
+  const viewIds = ['classes', 'activities', 'exams', 'timetable', 'daily', 'weekly', 'monthly', 'agenda', 'kanban', 'tasks', 'projects', 'goals', 'analytics', 'notes', 'settings'];
   viewIds.forEach(id => {
     it(`renders ${id}`, () => {
       expect(() => App.go(id)).not.toThrow();
@@ -128,6 +133,48 @@ describe('theme & interactions', () => {
     UI.quickAdd();
     expect(document.getElementById('modalRoot').children.length).toBe(1);
     UI.closeModal();
+  });
+
+  it('workload balance modal opens with suggestions or a clean bill', () => {
+    App.go('weekly');
+    document.getElementById('wBalance').click();
+    expect(document.getElementById('modalRoot').children.length).toBe(1);
+    UI.closeModal();
+  });
+
+  it('template picker opens and builds a pre-filled editor', () => {
+    App.go('tasks');
+    document.getElementById('newFromTpl').click();
+    expect(document.querySelector('#tplGrid')).toBeTruthy();
+    document.getElementById('tplDue').value = Utils.addDays(Utils.todayStr(), 12);
+    document.querySelector('[data-tpl="essay"]').click();
+    expect(document.querySelector('[name="assignmentType"]').value).toBe('essay');
+    expect(document.querySelectorAll('.session-row').length).toBeGreaterThan(0);
+    UI.closeModal();
+  });
+
+  it('study timer widget appears, pauses and logs time', () => {
+    const t = Store.get().tasks.find(x => x.status !== 'completed');
+    Timer.start(t.id);
+    expect(document.getElementById('timerWidget').classList.contains('hidden')).toBe(false);
+    Timer.pause();
+    expect(document.getElementById('timerWidget').innerHTML).toBeTruthy();
+    const before = Store.getTask(t.id).actualMin || 0;
+    const res = Timer.finish();
+    if (res.committed) expect(Store.getTask(t.id).actualMin).toBeGreaterThanOrEqual(before + 1);
+    expect(document.getElementById('timerWidget').classList.contains('hidden')).toBe(true);
+  });
+
+  it('exams view lists the seeded chemistry midterm with revision sessions', () => {
+    App.go('exams');
+    const html = document.getElementById('viewHost').innerHTML;
+    expect(html).toContain('Chemistry midterm');
+    expect(document.getElementById('exClassChips')).toBeTruthy();
+  });
+
+  it('timetable renders class blocks for the seeded schedule', () => {
+    App.go('timetable');
+    expect(document.querySelectorAll('.tt-block').length).toBeGreaterThanOrEqual(9);
   });
 
   it('global search finds seeded tasks', () => {

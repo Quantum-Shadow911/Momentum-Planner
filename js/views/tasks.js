@@ -2,7 +2,7 @@
 (function (global) {
   'use strict';
 
-  const filters = { q: '', prio: '', cat: '', cls: '', type: '', status: 'open', tag: '', sort: 'due' };
+  const filters = { q: '', prio: '', cat: '', cls: '', type: '', sub: '', status: 'open', tag: '', sort: 'due' };
   let showHistory = false;
 
   function render(host) {
@@ -11,8 +11,11 @@
 
     host.innerHTML = `
       <div class="page-head">
-        <div><h2>Tasks</h2><div class="sub">Create, organize and track everything on your plate.</div></div>
-        <button class="btn btn-primary" id="newTaskBtn">＋ New task</button>
+        <div><h2>Assignments</h2><div class="sub">Create, organize and track everything on your plate.</div></div>
+        <div class="row">
+          <button class="btn" id="newFromTpl">📋 From template</button>
+          <button class="btn btn-primary" id="newTaskBtn">＋ New task</button>
+        </div>
       </div>
       <div class="toolbar">
         <input class="input search-grow" id="fQ" placeholder="🔍 Search tasks…" value="${H(filters.q)}">
@@ -37,11 +40,16 @@
         </select>
         <select class="select" id="fCls">
           <option value="">All classes</option>
+          <option value="none" ${filters.cls === 'none' ? 'selected' : ''}>Not school-related</option>
           ${state.classes.map(c => `<option value="${H(c.id)}" ${filters.cls === c.id ? 'selected' : ''}>${H(c.icon)} ${H(c.name)}</option>`).join('')}
         </select>
         <select class="select" id="fType">
           <option value="">All types</option>
           ${Storage.ASSIGNMENT_TYPES.map(t => `<option value="${t}" ${filters.type === t ? 'selected' : ''}>${UI.TYPE_LABELS[t] || t}</option>`).join('')}
+        </select>
+        <select class="select" id="fSub">
+          <option value="">All submissions</option>
+          ${Storage.SUBMISSION_STATES.map(s => `<option value="${s}" ${filters.sub === s ? 'selected' : ''}>${{ 'not-started': 'Not started', working: 'Working on it', ready: 'Ready to submit', submitted: 'Submitted' }[s]}</option>`).join('')}
         </select>
         ${allTags.length ? `<select class="select" id="fTag"><option value="">All tags</option>${allTags.map(t => `<option value="${H(t)}" ${filters.tag === t ? 'selected' : ''}>#${H(t)}</option>`).join('')}</select>` : ''}
         <select class="select" id="fSort">
@@ -61,15 +69,16 @@
     `;
 
     host.querySelector('#newTaskBtn').addEventListener('click', () => UI.openTaskEditor());
+    host.querySelector('#newFromTpl').addEventListener('click', () => UI.openTemplatePicker({ dueDate: null, classId: filters.cls !== 'none' ? filters.cls : null }));
     const bind = (id, key) => {
       const el = host.querySelector(id);
       el.addEventListener('change', () => { filters[key] = el.value; renderList(); });
     };
     host.querySelector('#fQ').addEventListener('input', Utils.debounce(() => { filters.q = host.querySelector('#fQ').value; renderList(); }, 150));
     bind('#fStatus', 'status'); bind('#fPrio', 'prio'); bind('#fCat', 'cat'); bind('#fTag', 'tag'); bind('#fSort', 'sort');
-    bind('#fCls', 'cls'); bind('#fType', 'type');
+    bind('#fCls', 'cls'); bind('#fType', 'type'); bind('#fSub', 'sub');
     host.querySelector('#clearFilters').addEventListener('click', () => {
-      Object.assign(filters, { q: '', prio: '', cat: '', cls: '', type: '', status: 'open', tag: '' });
+      Object.assign(filters, { q: '', prio: '', cat: '', cls: '', type: '', sub: '', status: 'open', tag: '' });
       render(host);
     });
     host.querySelector('#toggleHistory').addEventListener('click', () => { showHistory = !showHistory; render(host); });
@@ -87,8 +96,9 @@
         if (filters.status === 'undated' && t.dueDate) return false;
         if (filters.prio && t.priority !== filters.prio) return false;
         if (filters.cat && t.categoryId !== filters.cat) return false;
-        if (filters.cls && t.classId !== filters.cls) return false;
+        if (filters.cls && (filters.cls === 'none' ? !!t.classId : t.classId !== filters.cls)) return false;
         if (filters.type && t.assignmentType !== filters.type) return false;
+        if (filters.sub && t.submission !== filters.sub) return false;
         if (filters.tag && !t.tags.includes(filters.tag)) return false;
         if (q) {
           const hay = (t.title + ' ' + t.description + ' ' + t.notes + ' ' + t.tags.join(' ')).toLowerCase();

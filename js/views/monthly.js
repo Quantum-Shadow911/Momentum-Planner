@@ -26,6 +26,10 @@
       </div>
       <div class="cal-header">${Utils.DOW_SHORT.map((d, i) => `<div>${Utils.DOW_SHORT[(i + state.settings.weekStartsOn) % 7]}</div>`).join('')}</div>
       <div class="cal-grid" id="calGrid"></div>
+      <div class="detail-section" style="margin-top:18px">
+        <h4>📚 Term overview — the next 3 months</h4>
+        <div class="grid grid-3" id="termStrip"></div>
+      </div>
     `;
 
     host.querySelector('#mPrev').addEventListener('click', () => { viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } render(host); });
@@ -39,13 +43,21 @@
       const items = Priority.allOn(state, d);
       const evts = Priority.eventsOn(state, d);
       const open = items.filter(t => t.status !== 'completed');
+      const brk = Planner.breakOn(state, d);
       const hasOverdue = d < today && open.length > 0;
       const hasUrgent = open.some(t => t.priority === 'urgent' || Priority.isAssessment(t));
       const cell = document.createElement('div');
       cell.className = 'cal-cell' + (inMonth ? '' : ' other-month') + (d === today ? ' today-cell' : '')
-        + (hasOverdue ? ' has-overdue' : hasUrgent ? ' has-deadline' : '');
+        + (hasOverdue ? ' has-overdue' : hasUrgent ? ' has-deadline' : '')
+        + (brk ? ' is-break' : '');
       cell.innerHTML = `<div class="cal-day-num">${Number(d.slice(8, 10))}</div><div class="cal-events"></div>`;
       const evHost = cell.querySelector('.cal-events');
+      if (brk && (d === brk.start || Number(d.slice(8, 10)) === 1 || i === 0)) {
+        const bTag = document.createElement('div');
+        bTag.className = 'cal-ev cal-ev-break';
+        bTag.textContent = `🏖 ${brk.name}`;
+        evHost.appendChild(bTag);
+      }
       const entries = [
         ...evts.slice(0, 2).map(e => ({ kind: 'event', e })),
         ...items.slice(0, 3).map(t => ({ kind: 'task', t }))
@@ -80,6 +92,35 @@
       }
       cell.addEventListener('click', () => dayDialog(d));
       grid.appendChild(cell);
+    }
+
+    /* term overview: next 3 months at a glance */
+    const strip = host.querySelector('#termStrip');
+    for (let m = 0; m < 3; m++) {
+      const dt = new Date(viewYear, viewMonth + m, 1);
+      const y = dt.getFullYear(), mo = dt.getMonth();
+      const key = `${y}-${String(mo + 1).padStart(2, '0')}`;
+      const mTasks = state.tasks.filter(t => t.dueDate && t.dueDate.slice(0, 7) === key);
+      const mOpen = mTasks.filter(t => t.status !== 'completed');
+      const mTests = mOpen.filter(t => Priority.isAssessment(t));
+      const mEvts = state.events.filter(e => e.date.slice(0, 7) === key);
+      const brks = (state.breaks || []).filter(b => b.start.slice(0, 7) === key || b.end.slice(0, 7) === key);
+      const done = mTasks.length ? Math.round(((mTasks.length - mOpen.length) / mTasks.length) * 100) : 0;
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.cursor = 'default';
+      card.innerHTML = `
+        <div class="card-title"><span>${Utils.monthLabel(y, mo)}</span></div>
+        <div class="row-wrap">
+          <span class="badge">📋 ${mOpen.length} open</span>
+          ${mTests.length ? `<span class="badge badge-today">📄 ${mTests.length} test${mTests.length === 1 ? '' : 's'}</span>` : ''}
+          ${mEvts.length ? `<span class="badge" style="background:var(--green-soft);color:var(--green)">⭐ ${mEvts.length}</span>` : ''}
+          ${brks.length ? `<span class="badge">🏖 ${brks.length} break${brks.length === 1 ? '' : 's'}</span>` : ''}
+        </div>
+        ${mTasks.length ? `<div><div class="spread small" style="margin:6px 0 4px"><span class="muted">completed</span><strong>${done}%</strong></div>
+          <div class="progress slim ${done === 100 ? 'green' : ''}"><div style="width:${done}%"></div></div></div>` : '<div class="muted small">Nothing scheduled yet.</div>'}
+      `;
+      strip.appendChild(card);
     }
   }
 

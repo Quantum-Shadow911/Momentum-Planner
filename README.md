@@ -11,7 +11,7 @@ npm start          # serves at http://localhost:4173 (zero-dep Node server)
 …or open `index.html` directly in a browser, or host the folder statically (works on GitHub Pages).
 
 ```bash
-npm test           # run the 56-test suite (Vitest + jsdom)
+npm test           # run the 83-test suite (Vitest + jsdom)
 npm run test:watch
 ```
 
@@ -21,14 +21,20 @@ npm run test:watch
 |---|---|
 | **Dashboard** | School-first overview: greeting + date, stat tiles (due today / assignments due soon / upcoming assessments / overdue), ✨ recommended next task with reasoning, today's priorities, today's planned study sessions (toggleable), overdue panel, upcoming deadlines, tests & quizzes ahead, extracurricular schedule, recently completed, next-4-days preview with ⚖ workload badges, inline quick-add (date optional — undated tasks land in the Inbox) |
 | **My Classes** | Subject workspaces with teacher, room, icon & color, recurring class schedule slots; per-class view of assignments, upcoming tests, completed work, related notes and auto-calculated progress |
-| **Assignments & study sessions** | Tasks support class, assignment type (homework / essay / project / lab / reading / revision / test-prep / quiz / test) and submission status (not started / working / ready / submitted); each assignment can carry multiple planned **study sessions** with date, time, duration and objective, toggleable from the dashboard, daily planner, weekly board and task viewer |
+| **Assignments & study sessions** | Tasks support class, assignment type (homework / essay / project / lab / reading / revision / test-prep / quiz / test) and submission status (not started / working / ready / submitted — filterable); each assignment can carry multiple planned **study sessions** with date, time, duration and objective, toggleable from the dashboard, daily planner, weekly board and task viewer |
+| **Assignment templates** | One-click templates (homework, essay, lab report, project, exam prep, reading) that pre-fill type, checklist and a realistic session plan spread before the due date, skipping breaks |
+| **Exams & Quizzes** | Dedicated view: every upcoming assessment grouped per class with countdown, revision sessions and minutes-revised tracking, one-click “＋ Revision session”, past/missed and recently completed sections |
+| **Study timer** | Floating ⏱ timer (refresh-safe) started from any task; on finish it logs real minutes into the task's “time spent” |
+| **Attachments** | Attach worksheets and instruction files (up to 2 MB each, stored locally in your browser) to any task; download from the task viewer |
+| **School breaks** | Define holiday ranges in Settings; they are shaded in the calendar, flagged in the daily/weekly planners and skipped by workload balancing and smart rescheduling |
 | **Task management** | Create / edit / duplicate / delete / complete; description, start & due dates, scheduled time, duration, priority (Low→Urgent), status, category, tags, estimate vs. actual time, subtask checklists, recurrence (daily / weekdays / weekly / biweekly / monthly — every option respects its interval), reminders, reference links, dependencies, notes; search, 5 sort orders, combined filters (incl. class & type); completed tasks move to a collapsible history |
-| **Planning views** | Daily (hour-by-hour grid with timed sessions, drag to reschedule), Weekly (7-day board with ⚖ daily workload totals and heavy-load warnings, events + sessions + tasks), Monthly calendar (overdue vs. deadline highlighting, events in cells, day dialog), Agenda (chronological groups incl. events, overdue & undated), Kanban (4 status columns with drag & drop) — all synchronized through a single store |
+| **Planning views** | Daily (hour-by-hour grid with timed sessions, drag to reschedule), Weekly (7-day board with ⚖ daily workload totals, heavy-load warnings and one-click **⚖ Balance workload** approval flow), Monthly calendar (overdue vs. deadline highlighting, events + break shading in cells, 3-month term overview, day dialog), Timetable (weekly class-schedule grid), Agenda (chronological groups incl. events, overdue & undated), Kanban (4 status columns with drag & drop) — all synchronized through a single store |
+| **Smart scheduling** | ⚖ Balance workload: moves study sessions off overloaded days to the lightest feasible day (before the due date, skipping breaks) with an approve/reject dialog; ⚖ Smart reschedule: relocates overdue work and missed sessions to realistic new days; both never change anything without your approval |
 | **Activities & events** | Dedicated events view for extracurriculars: icon, time range, location, category, notes; upcoming 30 days grouped by date with collapsible history; events appear alongside tasks in the calendar but behave differently (no completion, no priority) |
 | **Categories** | 9 seeded categories; full CRUD with icon + color picker |
 | **Smart prioritization** | Weighted scoring: deadline proximity, overdue boost, assigned priority, in-progress momentum, quick-win bonus, long-task drag for far-out work, dependency blocking (blocked tasks are never recommended) |
 | **Projects & goals** | Milestones with due dates, linked tasks, auto-calculated progress, status/priority, links & notes; goals with milestone progress and target dates |
-| **Analytics** | 14-day completion trend (line), overall completion (donut), category & project progress (bars), completion-by-weekday history, open-tasks-by-priority — all computed from real saved data |
+| **Analytics** | 14-day completion trend (line), overall completion (donut), category & project progress (bars), per-class progress, study time trend (hours of completed sessions), 7-day workload chart with over-limit warnings, submission pipeline, completion-by-weekday history, open-tasks-by-priority — all computed from real saved data |
 | **Reminders** | Per-task reminder times + app-wide default; in-app toasts always; real device notifications only after explicit browser permission (status shown honestly in Settings) |
 | **Notes** | Colored, pinnable notes searchable across titles/bodies, linkable to tasks and projects |
 | **Inbox** | Quick capture without deadlines: undated tasks collect in the Assignment Inbox until you schedule them |
@@ -49,12 +55,14 @@ js/utils.js           date math, formatting, escaping (tested)
 js/storage.js         persistence, validation, backups, trash, import/export (tested)
 js/store.js           central state + actions + pub/sub, recurrence engine (tested)
 js/priority.js        smart scoring, recommended-next-task, shared selectors (tested)
+js/planner.js         workload distribution, smart rescheduling, templates, breaks (tested)
+js/timer.js           refresh-safe study timer (tested)
 js/charts.js          dependency-free canvas charts
 js/reminders.js       in-app + device notification scheduler
 js/ui.js              toasts, modals, task editor, shared task item renderer
-js/views/*.js         one module per view (dashboard, classes, tasks, daily,
-                      weekly, monthly, agenda, kanban, activities, projects,
-                      goals, analytics, notes, settings)
+js/views/*.js         one module per view (dashboard, classes, exams, timetable,
+                      tasks, daily, weekly, monthly, agenda, kanban,
+                      activities, projects, goals, analytics, notes, settings)
 js/app.js             router, nav, theme, global search, seed data
 tests/                Vitest unit tests + full-app jsdom smoke test
 ```

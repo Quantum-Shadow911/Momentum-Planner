@@ -81,6 +81,18 @@
           <div class="row-wrap" id="catList"></div>
         </div>
 
+        <div class="card" style="grid-column:1/-1">
+          <div class="card-title"><span>🏖 School breaks & holidays</span></div>
+          <p class="muted small" style="margin-top:0">Break days are skipped by workload balancing and smart rescheduling, and shaded in the calendar.</p>
+          <div id="breakList"></div>
+          <div class="field-row-3" style="margin-top:10px">
+            <div class="field"><label>Break name</label><input class="input" id="brkName" maxlength="80" placeholder="e.g. Winter break"></div>
+            <div class="field"><label>First day</label><input class="input" type="date" id="brkStart"></div>
+            <div class="field"><label>Last day</label><input class="input" type="date" id="brkEnd"></div>
+          </div>
+          <button class="btn btn-sm btn-primary" id="brkAdd">＋ Add break</button>
+        </div>
+
         <div class="card" style="grid-column:1/-1;border-color:var(--red)">
           <div class="card-title"><span style="color:var(--red)">⚠ Danger zone</span></div>
           <div class="row-wrap">
@@ -244,6 +256,36 @@
       catList.appendChild(chip);
     });
     host.querySelector('#newCat').addEventListener('click', () => UI.openCategoryEditor());
+
+    /* school breaks */
+    const breakList = host.querySelector('#breakList');
+    if (!(state.breaks || []).length) {
+      breakList.innerHTML = `<div class="muted small">No breaks defined yet.</div>`;
+    } else {
+      state.breaks.forEach(b => {
+        const row = document.createElement('div');
+        row.className = 'settings-row';
+        const days = Utils.diffDays(b.end, b.start) + 1;
+        row.innerHTML = `
+          <div><div class="s-label">🏖 ${H(b.name)}</div>
+          <div class="s-desc">${H(Utils.fmtDate(b.start))} – ${H(Utils.fmtDate(b.end))} · ${days} day${days === 1 ? '' : 's'}</div></div>
+          <button class="btn btn-sm">Remove</button>`;
+        row.querySelector('button').addEventListener('click', () => {
+          Store.deleteBreak(b.id);
+          UI.toast('info', 'Break removed', b.name);
+        });
+        breakList.appendChild(row);
+      });
+    }
+    host.querySelector('#brkAdd').addEventListener('click', () => {
+      const name = host.querySelector('#brkName').value.trim();
+      const start = host.querySelector('#brkStart').value;
+      const end = host.querySelector('#brkEnd').value;
+      if (!name || !start || !end) { UI.toast('warning', 'Missing details', 'Give the break a name and both dates.'); return; }
+      if (end < start) { UI.toast('warning', 'Invalid range', 'The last day cannot be before the first day.'); return; }
+      Store.saveBreak({ name, start, end });
+      UI.toast('success', 'Break added', name);
+    });
 
     /* danger zone */
     host.querySelector('#loadSample').addEventListener('click', async () => {

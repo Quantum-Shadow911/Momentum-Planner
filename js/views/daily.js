@@ -29,6 +29,9 @@
           ${load.total ? `<span class="badge ${load.total >= (state.settings.dailyLoadLimit || 180) ? 'badge-overdue' : 'badge-cat'}">⚖ ${Utils.fmtDuration(load.total)} planned</span>` : ''}
         </div>
       </div>
+      ${Planner.breakOn(state, currentDate) ? `<div class="card" style="padding:10px 18px;margin-bottom:14px;border-left:4px solid var(--purple)">
+        <strong>🏖 ${H(Planner.breakOn(state, currentDate).name)}</strong> <span class="muted small">— school break; planners skip this day when balancing workload.</span>
+      </div>` : ''}
       ${evts.length ? `<div class="card" style="padding:12px 18px;margin-bottom:14px;border-left:4px solid var(--green)">
         <div class="card-title" style="margin-bottom:8px"><span>⭐ Fixed commitments (${evts.length})</span>
           <button class="link-btn" data-go="activities">Manage events →</button></div>

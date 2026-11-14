@@ -298,6 +298,11 @@
         </dl>
       </div>
       ${t.notes ? `<div class="detail-section"><h4>Notes</h4><p style="margin:0;color:var(--text-2);white-space:pre-wrap">${H(t.notes)}</p></div>` : ''}
+      ${t.attachments && t.attachments.length ? `
+      <div class="detail-section">
+        <h4>📎 Attachments (${t.attachments.length})</h4>
+        ${t.attachments.map(a => `<div class="settings-row"><div class="s-label">${H(a.name)}</div><div class="s-desc">${H(Math.max(1, Math.round(a.size / 1024)))} KB</div><a class="btn btn-sm" href="${H(a.dataUrl)}" download="${H(a.name)}">Download</a></div>`).join('')}
+      </div>` : ''}
     `;
     body.querySelectorAll('[data-sub]').forEach(btn => {
       btn.addEventListener('click', () => Store.toggleSubtask(t.id, btn.dataset.sub));
@@ -316,14 +321,25 @@
         }
       });
     });
+    const buttons = [
+      { label: '✏️ Edit', class: 'btn-primary', onClick: () => { closeModal(); openTaskEditor(t.id); } },
+      { label: 'Close', onClick: () => closeModal() }
+    ];
+    if (t.status !== 'completed' && global.Timer) {
+      buttons.unshift({
+        label: '⏱ Study timer', class: 'btn-ghost',
+        onClick: () => {
+          global.Timer.start(t.id);
+          closeModal();
+          toast('info', 'Timer started ⏱', `Tracking time for “${t.title}”. Click the timer to pause or finish.`);
+        }
+      });
+    }
     openModal({
       title: t.title,
       body,
       large: true,
-      buttons: [
-        { label: '✏️ Edit', class: 'btn-primary', onClick: () => { closeModal(); openTaskEditor(t.id); } },
-        { label: 'Close', onClick: () => closeModal() }
-      ]
+      buttons
     });
   }
 
@@ -343,14 +359,14 @@
     const t = taskId ? Store.getTask(taskId) : null;
     const p = presets || {};
     const base = t || {
-      title: p.title || '', description: '', startDate: null, dueDate: p.dueDate || null, time: p.time || null,
-      durationMin: 0, priority: p.priority || 'medium', categoryId: p.categoryId || (state.categories[0] && state.categories[0].id) || null,
+      title: p.title || '', description: p.description || '', startDate: p.startDate || null, dueDate: p.dueDate || null, time: p.time || null,
+      durationMin: p.durationMin || 0, priority: p.priority || 'medium', categoryId: p.categoryId || (state.categories[0] && state.categories[0].id) || null,
       classId: p.classId || null,
       assignmentType: p.assignmentType || 'general',
-      submission: 'not-started',
-      sessions: [],
-      tags: [], estimateMin: 0, actualMin: 0, subtasks: [], recurrence: { type: 'none', interval: 1 },
-      reminders: [], links: [], notes: '', status: p.status || 'not-started', dependsOn: [], projectId: p.projectId || null
+      submission: p.submission || 'not-started',
+      sessions: p.sessions || [],
+      tags: p.tags || [], estimateMin: p.estimateMin || 0, actualMin: 0, subtasks: p.subtasks || [], recurrence: { type: 'none', interval: 1 },
+      reminders: p.reminders || [], links: p.links || [], attachments: p.attachments || [], notes: p.notes || '', status: p.status || 'not-started', dependsOn: p.dependsOn || [], projectId: p.projectId || null
     };
 
     const depOptions = state.tasks.filter(x => x.id !== taskId && x.status !== 'completed');
@@ -474,6 +490,12 @@
         <button class="btn btn-sm btn-ghost" id="addLink" type="button">＋ Add link</button>
       </div>
       <div class="field">
+        <label>Attachments <span class="muted">(worksheets, instructions — up to 2 MB per file, stored in your browser)</span></label>
+        <div id="attachEditor"></div>
+        <input type="file" id="attachFile" multiple class="hidden">
+        <button class="btn btn-sm btn-ghost" id="addAttach" type="button">📎 Attach files</button>
+      </div>
+      <div class="field">
         <label>Subtasks / checklist</label>
         <div id="subtasksEditor"></div>
         <button class="btn btn-sm btn-ghost" id="addSubtask" type="button">＋ Add step</button>
@@ -528,6 +550,40 @@
     }
     (base.links || []).forEach(addLinkRow);
     body.querySelector('#addLink').addEventListener('click', () => addLinkRow(null));
+
+    const attEd = body.querySelector('#attachEditor');
+    const attachments = (base.attachments || []).slice();
+    function renderAttachments() {
+      attEd.innerHTML = '';
+      attachments.forEach((a, i) => {
+        const row = document.createElement('div');
+        row.className = 'subtask-editor-row';
+        row.innerHTML = `
+          <span class="grow muted small" style="overflow:hidden;text-overflow:ellipsis">📎 ${H(a.name)} <span>· ${H(Math.max(1, Math.round(a.size / 1024)) + ' KB')}</span></span>
+          <button class="icon-btn" type="button" aria-label="Remove attachment">✕</button>`;
+        row.querySelector('button').addEventListener('click', () => { attachments.splice(i, 1); renderAttachments(); });
+        attEd.appendChild(row);
+      });
+    }
+    renderAttachments();
+    const fileInput = body.querySelector('#attachFile');
+    body.querySelector('#addAttach').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+      Array.from(fileInput.files || []).forEach(file => {
+        if (file.size > Storage.MAX_ATTACHMENT_BYTES) {
+          UI.toast('warning', 'File too large', `“${file.name}” is over 2 MB and was not attached.`);
+          return;
+        }
+        if (attachments.length >= 8) { UI.toast('warning', 'Attachment limit', 'Up to 8 files per task.'); return; }
+        const reader = new FileReader();
+        reader.onload = () => {
+          attachments.push({ id: Utils.uid('att'), name: file.name, size: file.size, dataUrl: String(reader.result) });
+          renderAttachments();
+        };
+        reader.readAsDataURL(file);
+      });
+      fileInput.value = '';
+    });
 
     const sesEd = body.querySelector('#sessionsEditor');
     function addSessionRow(ses) {
@@ -593,6 +649,7 @@
         classId: f('classId').value || null,
         assignmentType: f('assignmentType').value,
         submission: f('submission').value,
+        attachments: attachments.slice(),
         dependsOn: Array.from(body.querySelectorAll('#depChoices input:checked')).map(i => i.value),
         notes: f('notes').value
       };
@@ -678,6 +735,87 @@
     });
   }
 
+  /* ================= Assignment templates ================= */
+
+  function openTemplatePicker(preset) {
+    const p = preset || {};
+    const state = Store.get();
+    const body = document.createElement('div');
+    body.innerHTML = `
+      <p class="muted small" style="margin-top:0">Pick a template — it pre-fills type, checklist and a realistic plan of study sessions spread before the due date.</p>
+      <div class="field-row-2">
+        <div class="field"><label>Title</label><input class="input" id="tplTitle" placeholder="e.g. History essay — Industrial Revolution"></div>
+        <div class="field"><label>Due date</label><input class="input" type="date" id="tplDue" value="${H(p.dueDate || '')}"></div>
+      </div>
+      <div class="field"><label>Class</label>
+        <select class="select" id="tplClass">
+          <option value="">Not school-related</option>
+          ${state.classes.map(c => `<option value="${H(c.id)}" ${p.classId === c.id ? 'selected' : ''}>${H(c.icon)} ${H(c.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="tpl-grid" id="tplGrid">
+        ${Planner.TEMPLATES.map(tp => `
+          <button type="button" class="tpl-card" data-tpl="${tp.id}">
+            <div class="tpl-icon">${tp.icon}</div>
+            <div class="tpl-name">${H(tp.name)}</div>
+            <div class="muted small">~${H(Utils.fmtDuration(tp.estimateMin))} · ${tp.sessions.length} session${tp.sessions.length === 1 ? '' : 's'} · ${tp.subtasks.length} steps</div>
+          </button>`).join('')}
+      </div>`;
+    body.querySelectorAll('[data-tpl]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const title = body.querySelector('#tplTitle').value.trim();
+        const due = body.querySelector('#tplDue').value || null;
+        const classId = body.querySelector('#tplClass').value || null;
+        const fields = Planner.buildFromTemplate(btn.dataset.tpl, { title, dueDate: due, classId, state });
+        if (!fields) return;
+        closeModal();
+        openTaskEditor(null, fields);
+      });
+    });
+    openModal({ title: 'New from template', body, large: true, buttons: [{ label: 'Cancel', class: 'btn-ghost', onClick: () => closeModal() }] });
+  }
+
+  /* ================= Suggestion approval (workload balance / reschedule) ================= */
+
+  function openSuggestionModal(opts) {
+    const sug = opts.suggestions || [];
+    if (!sug.length) {
+      toast('success', opts.noneTitle || 'Nothing to do', opts.noneMsg || 'Everything already fits your schedule.');
+      return;
+    }
+    const body = document.createElement('div');
+    body.innerHTML = `
+      <p class="muted small" style="margin-top:0">${H(opts.intro || '')}</p>
+      <div id="sugList">
+        ${sug.map((s, i) => `
+          <label class="settings-row sug-row" style="cursor:pointer">
+            <input type="checkbox" class="sug-check" data-i="${i}" checked style="margin-right:10px">
+            <div class="grow">
+              <div class="s-label">${H(s.kind === 'task' ? '📅 ' : '🧠 ')}${H(s.title || s.taskTitle)}${s.objective ? ` — ${H(s.objective)}` : ''}${s.durationMin ? ` <span class="muted">(${H(Utils.fmtDuration(s.durationMin))})</span>` : ''}</div>
+              <div class="s-desc">${H(Utils.fmtDateSmart(s.fromDate))} → <strong>${H(Utils.fmtDateSmart(s.toDate))}</strong> (${H(Utils.relDayLabel(s.toDate))})</div>
+            </div>
+          </label>`).join('')}
+      </div>`;
+    openModal({
+      title: opts.title,
+      body,
+      large: true,
+      buttons: [
+        { label: 'Cancel', class: 'btn-ghost', onClick: () => closeModal() },
+        {
+          label: opts.applyLabel || 'Apply selected', class: 'btn-primary',
+          onClick: () => {
+            const checks = Array.from(body.querySelectorAll('.sug-check:checked'));
+            if (!checks.length) { closeModal(); return; }
+            checks.forEach(c => Planner.applySuggestion(sug[Number(c.dataset.i)]));
+            toast('success', opts.appliedTitle || 'Applied', `${checks.length} change${checks.length === 1 ? '' : 's'} made.`);
+            closeModal();
+          }
+        }
+      ]
+    });
+  }
+
   /* ================= Category editor ================= */
 
   const COLOR_SWATCHES = ['#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f59e0b', '#10b981', '#14b8a6', '#3b82f6', '#64748b'];
@@ -746,6 +884,7 @@
     prioBadge, dueBadge, catBadge, tagBadges, statusBadge, catOf,
     classOf, classBadge, typeBadge, submissionBadge, TYPE_LABELS, SUBMISSION_LABELS,
     taskItem, openTaskViewer, openTaskEditor, quickAdd, openCategoryEditor,
+    openTemplatePicker, openSuggestionModal,
     recurrenceLabel, reminderLabel, COLOR_SWATCHES, ICON_CHOICES
   };
 

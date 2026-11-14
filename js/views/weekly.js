@@ -18,6 +18,7 @@
       <div class="page-head">
         <div><h2>Weekly Planner</h2><div class="sub">${Utils.fmtDate(weekStart)} – ${Utils.fmtDate(weekEnd)} · ${weekTasks.length} tasks, ${doneCount} done · ⚖ = planned workload per day (warns over ${Utils.fmtDuration(state.settings.dailyLoadLimit || 180)})</div></div>
         <div class="row">
+          <button class="btn" id="wBalance" title="Move study sessions off overloaded days">⚖ Balance workload</button>
           <button class="btn" id="wToday">This week</button>
           <button class="icon-btn" id="wPrev" aria-label="Previous week">←</button>
           <button class="icon-btn" id="wNext" aria-label="Next week">→</button>
@@ -29,6 +30,18 @@
     host.querySelector('#wPrev').addEventListener('click', () => { weekStart = Utils.addDays(weekStart, -7); render(host); });
     host.querySelector('#wNext').addEventListener('click', () => { weekStart = Utils.addDays(weekStart, 7); render(host); });
     host.querySelector('#wToday').addEventListener('click', () => { weekStart = Utils.startOfWeek(Utils.todayStr(), state.settings.weekStartsOn); render(host); });
+    host.querySelector('#wBalance').addEventListener('click', () => {
+      UI.openSuggestionModal({
+        title: '⚖ Balance workload',
+        intro: `Days over your ${Utils.fmtDuration(limitOf(state))} limit are listed below. Study sessions move to the lightest day that is still before the assignment's due date — school breaks are skipped. Nothing changes until you apply.`,
+        suggestions: Planner.suggestDistribution(Store.get()),
+        noneTitle: 'Workload looks good',
+        noneMsg: 'No day is over your workload limit — nothing needs moving.',
+        appliedTitle: 'Workload rebalanced'
+      });
+    });
+
+    function limitOf(state) { return state.settings.dailyLoadLimit || 180; }
 
     const grid = host.querySelector('#weekGrid');
     const limit = state.settings.dailyLoadLimit || 180;
@@ -39,11 +52,13 @@
       const load = Priority.workloadOn(state, d);
       const col = document.createElement('div');
       col.className = 'week-col' + (d === today ? ' today-col-hl' : '');
+      const brk = Planner.breakOn(state, d);
       col.innerHTML = `
         <div class="week-col-head">
           <span class="dow">${Utils.DOW_SHORT[Utils.parseDate(d).getDay()]}${d === today ? ' · today' : ''}</span>
           <span class="dnum">${Utils.fmtDate(d).replace(', ' + Utils.parseDate(d).getFullYear(), '')}</span>
           <div class="row-wrap" style="margin-top:4px">
+            ${brk ? `<span class="badge" style="background:var(--purple-soft,var(--surface-2));color:var(--purple)">🏖 ${H(brk.name)}</span>` : ''}
             ${load.total ? `<span class="badge ${load.total >= limit ? 'badge-overdue' : 'badge-cat'}" title="Tasks due: ${Utils.fmtDuration(load.taskLoad)} · sessions: ${Utils.fmtDuration(load.sessionLoad)}">⚖ ${Utils.fmtDuration(load.total)}${load.total >= limit ? ' — heavy!' : ''}</span>` : ''}
             ${evts.length ? `<span class="badge" style="background:var(--green-soft);color:var(--green)">⭐ ${evts.length}</span>` : ''}
           </div>

@@ -16,3 +16,5 @@ await import('../js/utils.js');
 await import('../js/storage.js');
 await import('../js/store.js');
 await import('../js/priority.js');
+await import('../js/planner.js');
+await import('../js/timer.js');

@@ -13,6 +13,7 @@
 
   const ASSIGNMENT_TYPES = ['general', 'homework', 'essay', 'project', 'lab', 'reading', 'revision', 'test-prep', 'quiz', 'test'];
   const SUBMISSION_STATES = ['not-started', 'working', 'ready', 'submitted'];
+  const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024;
 
   function emptyState() {
     return {
@@ -25,6 +26,7 @@
       goals: [],
       notes: [],
       trash: [],
+      breaks: [],
       activity: [],
       settings: {
         theme: 'light',
@@ -77,6 +79,7 @@
       assignmentType: ASSIGNMENT_TYPES.includes(t.assignmentType) ? t.assignmentType : 'general',
       submission: SUBMISSION_STATES.includes(t.submission) ? t.submission : (t.status === 'completed' ? 'submitted' : 'not-started'),
       sessions: arr(t.sessions).map(normalizeSession).filter(Boolean).slice(0, 40),
+      attachments: arr(t.attachments).map(normalizeAttachment).filter(Boolean).slice(0, 8),
       reminders: arr(t.reminders).map(n => num(n, null)).filter(n => n != null && n >= 0 && n <= 10080).slice(0, 5),
       links: arr(t.links).map(l => ({ label: str(l.label).slice(0, 120), url: str(l.url).slice(0, 1000) })).filter(l => l.url).slice(0, 10),
       notes: str(t.notes).slice(0, 5000),
@@ -108,6 +111,28 @@
       objective: str(s.objective).slice(0, 300),
       done: bool(s.done)
     };
+  }
+
+  function normalizeAttachment(a) {
+    if (!a || typeof a !== 'object') return null;
+    const url = str(a.dataUrl);
+    if (!url.startsWith('data:')) return null;
+    if (url.length > Math.ceil(MAX_ATTACHMENT_BYTES * 4 / 3) + 128) return null;
+    return {
+      id: str(a.id) || Utils.uid('att'),
+      name: (str(a.name).trim() || 'attachment').slice(0, 200),
+      size: Utils.clamp(num(a.size, 0), 0, MAX_ATTACHMENT_BYTES),
+      dataUrl: url
+    };
+  }
+
+  function normalizeBreak(b) {
+    if (!b || typeof b !== 'object') return null;
+    const name = str(b.name).trim();
+    const start = dateOrNull(b.start);
+    const end = dateOrNull(b.end);
+    if (!name || !start || !end || end < start) return null;
+    return { id: str(b.id) || Utils.uid('brk'), name: name.slice(0, 80), start, end };
   }
 
   function normalizeClass(c) {
@@ -224,6 +249,7 @@
       pinned: bool(n.pinned),
       taskIds: arr(n.taskIds).filter(x => typeof x === 'string').slice(0, 20),
       projectIds: arr(n.projectIds).filter(x => typeof x === 'string').slice(0, 20),
+      classId: str(n.classId) || null,
       createdAt: n.createdAt ? str(n.createdAt) : new Date().toISOString(),
       updatedAt: n.updatedAt ? str(n.updatedAt) : new Date().toISOString()
     };
@@ -285,8 +311,10 @@
       goals: arr(data.goals).map(normalizeGoal).filter(Boolean),
       notes: arr(data.notes).map(normalizeNote).filter(Boolean).map(n => Object.assign(n, {
         taskIds: n.taskIds.filter(id => taskIds.has(id)),
-        projectIds: n.projectIds.filter(id => projIds.has(id))
+        projectIds: n.projectIds.filter(id => projIds.has(id)),
+        classId: n.classId && classIds.has(n.classId) ? n.classId : null
       })),
+      breaks: arr(data.breaks).map(normalizeBreak).filter(Boolean),
       trash: arr(data.trash).slice(0, MAX_TRASH),
       activity: arr(data.activity).filter(a => a && typeof a === 'object' && a.ts).slice(-2000),
       settings: normalizeSettings(data.settings, prev && prev.settings)
@@ -416,8 +444,8 @@
   }
 
   const Storage = {
-    KEY, PRIORITIES, STATUSES, RECURRENCE_TYPES, ASSIGNMENT_TYPES, SUBMISSION_STATES,
-    emptyState, normalize, normalizeTask, normalizeProject, normalizeGoal, normalizeNote, normalizeCategory, normalizeClass, normalizeEvent, normalizeSession,
+    KEY, PRIORITIES, STATUSES, RECURRENCE_TYPES, ASSIGNMENT_TYPES, SUBMISSION_STATES, MAX_ATTACHMENT_BYTES,
+    emptyState, normalize, normalizeTask, normalizeProject, normalizeGoal, normalizeNote, normalizeCategory, normalizeClass, normalizeEvent, normalizeSession, normalizeAttachment, normalizeBreak,
     load, save, snapshot, listBackups, restoreBackup, pushTrash, restoreFromTrash, exportJson, importJson
   };
 

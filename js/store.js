@@ -358,6 +358,46 @@
     update(s2 => s2, { type: 'session-removed' });
   }
 
+  function moveSession(taskId, sessionId, newDate, newTime) {
+    const t = getTask(taskId);
+    if (!t) return;
+    const s = t.sessions.find(x => x.id === sessionId);
+    if (!s) return;
+    const date = Storage.normalizeSession({ date: newDate, time: newTime != null ? newTime : s.time, durationMin: s.durationMin });
+    if (!date) return;
+    s.date = date.date;
+    if (newTime !== undefined) s.time = date.time;
+    t.updatedAt = new Date().toISOString();
+    update(s2 => s2, { type: 'session-moved', id: sessionId });
+  }
+
+  function addSpentTime(taskId, minutes) {
+    const t = getTask(taskId);
+    const mins = Math.round(Number(minutes));
+    if (!t || !isFinite(mins) || mins <= 0) return;
+    t.actualMin = (t.actualMin || 0) + mins;
+    t.updatedAt = new Date().toISOString();
+    logActivity('progress', `Tracked ${Utils.fmtDuration(mins)} on “${t.title}”`);
+    update(s2 => s2, { type: 'time-logged', id: taskId });
+  }
+
+  /* ================= School breaks / holidays ================= */
+
+  function saveBreak(fields) {
+    const clean = Storage.normalizeBreak(fields);
+    if (!clean) return null;
+    const existing = state.breaks.find(b => b.id === clean.id);
+    if (existing) Object.assign(existing, clean);
+    else state.breaks.push(clean);
+    update(s => s, { type: 'break-saved', id: clean.id });
+    return clean;
+  }
+
+  function deleteBreak(id) {
+    state.breaks = state.breaks.filter(b => b.id !== id);
+    update(s => s, { type: 'break-deleted', id });
+  }
+
   /* ================= Notes ================= */
 
   function saveNote(fields) {
@@ -412,7 +452,8 @@
     saveCategory, deleteCategory,
     saveClass, getClass, deleteClass, classProgress,
     saveEvent, getEvent, deleteEvent,
-    toggleSession, addSession, removeSession,
+    toggleSession, addSession, removeSession, moveSession, addSpentTime,
+    saveBreak, deleteBreak,
     saveProject, getProject, deleteProject, toggleMilestone, projectProgress,
     saveGoal, getGoal, deleteGoal, toggleGoalMilestone, goalProgress,
     saveNote, deleteNote,

@@ -223,6 +223,8 @@
     });
   }
 
+  function selectClass(id) { selectedClassId = id; }
+
   global.Views = global.Views || {};
-  global.Views.classes = { title: 'My Classes', render, openClassEditor };
+  global.Views.classes = { title: 'My Classes', render, openClassEditor, selectClass };
 })(typeof window !== 'undefined' ? window : globalThis);

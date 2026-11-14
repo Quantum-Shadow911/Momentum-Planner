@@ -242,4 +242,15 @@ describe('lock screen and app start', () => {
     expect(Store.get().tasks.some(t => t.title === 'Alex private task')).toBe(true);
     Store.deleteTask(Store.get().tasks.find(t => t.title === 'Alex private task').id);
   });
+
+  it('signing in with no accounts on the device explains how to create one', () => {
+    dom.window.localStorage.removeItem('momentum.profiles.v1');
+    dom.window.localStorage.removeItem('momentum.session.v1');
+    App.boot();
+    document.getElementById('liUser').value = 'advait';
+    document.getElementById('liPw').value = '1234';
+    document.getElementById('liGo').click();
+    expect(document.getElementById('loginErr').textContent).toContain('No accounts exist on this device yet');
+    expect(document.getElementById('toSignUp')).toBeTruthy();
+  });
 });

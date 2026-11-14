@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.4.7-launcher';
+  const APP_VERSION = '2.4.8-new-device-hint';
 
   const NAV = [
     { section: 'Overview' },
@@ -506,13 +506,17 @@
         <div class="field"><label>Password</label><input class="input" type="password" id="liPw" autocomplete="current-password"></div>
         <div class="form-error" id="loginErr"></div>
         <button class="btn btn-primary btn-block" id="liGo">Sign in</button>
-        <div class="login-alt">New here? <button class="link-btn" id="toSignUp">Create an account</button></div>`);
+        <div class="login-alt">New here, or using a new device or app? <button class="link-btn" id="toSignUp">Create an account</button></div>`);
       const go = () => {
         const id = root.querySelector('#liUser').value;
         const pw = root.querySelector('#liPw').value;
         if (!id.trim()) { root.querySelector('#loginErr').textContent = 'Enter your username or email.'; return; }
-        if (Auth.login(id, pw)) finishLogin(Auth.sessionProfile());
-        else root.querySelector('#loginErr').textContent = 'Wrong username/email or password — try again.';
+        if (Auth.login(id, pw)) { finishLogin(Auth.sessionProfile()); return; }
+        if (!Auth.profiles().length) {
+          root.querySelector('#loginErr').textContent = 'No accounts exist on this device yet — click “Create an account” below. Accounts don’t transfer between browsers or devices.';
+          return;
+        }
+        root.querySelector('#loginErr').textContent = 'Wrong username/email or password — try again.';
       };
       root.querySelector('#liGo').addEventListener('click', go);
       root.querySelector('#liPw').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });

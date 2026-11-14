@@ -76,8 +76,8 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(7);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.7-launcher');
-    expect(Store.get().settings.lastVersion).toBe('2.4.7-launcher');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.8-new-device-hint');
+    expect(Store.get().settings.lastVersion).toBe('2.4.8-new-device-hint');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(12);
     const navViews = [...document.querySelectorAll('.nav-item')].map(b => b.dataset.view);

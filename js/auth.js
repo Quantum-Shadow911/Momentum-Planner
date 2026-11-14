@@ -93,6 +93,13 @@
       fresh: true,
       createdAt: new Date().toISOString()
     };
+    const rq = String(fields.recoveryQ || '').trim().slice(0, 120);
+    const ra = String(fields.recoveryA || '').trim().toLowerCase();
+    if (rq && ra) {
+      p.recoveryQ = rq;
+      p.recoverySalt = Utils.uid('s');
+      p.recoveryAHash = hash(ra, p.recoverySalt);
+    }
     list.push(p);
     if (!saveProfiles(list)) return { error: 'Could not save the account — your browser is blocking storage.' };
     return { profile: p };
@@ -152,6 +159,60 @@
     return { ok: true };
   }
 
+  /* Password recovery: a question chosen by the user at sign-up (answer stored
+     hashed, compared case-insensitively). Accounts without a question fall back
+     to confirming the account email — honest "casual lock" level, like the
+     rest of the local-account system. */
+  function normAnswer(a) { return String(a || '').trim().toLowerCase(); }
+
+  function recoveryInfo(idOr) {
+    const p = findAccount(idOr);
+    if (!p) return { found: false };
+    return {
+      found: true,
+      id: p.id,
+      username: p.username,
+      hasPassword: !!p.passHash,
+      hasQuestion: !!p.recoveryAHash,
+      question: p.recoveryQ || '',
+      email: p.email || ''
+    };
+  }
+
+  function resetPassword(idOr, answer, newPw, emailConfirm) {
+    const list = loadProfiles();
+    const byId = list.find(x => x.id === idOr);
+    const found = byId || findAccount(idOr);
+    const p = found ? list.find(x => x.id === found.id) : null;
+    if (!p) return { error: 'No account found with that username or email.' };
+    if (!p.passHash) return { error: 'This account has no password — just sign in without one.' };
+    if (!p.recoveryAHash) {
+      const typed = String(emailConfirm || '').trim().toLowerCase();
+      if (!typed || typed !== (p.email || '').toLowerCase()) return { error: 'That email does not match this account.' };
+    } else if (hash(normAnswer(answer), p.recoverySalt) !== p.recoveryAHash) {
+      return { error: 'That answer is not correct — try again.' };
+    }
+    if (!newPw || String(newPw).length < 4) return { error: 'New password must be at least 4 characters.' };
+    p.salt = Utils.uid('s');
+    p.passHash = hash(String(newPw), p.salt);
+    if (!saveProfiles(list)) return { error: 'Could not save — your browser is blocking storage.' };
+    return { ok: true, username: p.username };
+  }
+
+  function setRecovery(id, question, answer) {
+    const list = loadProfiles();
+    const p = list.find(x => x.id === id);
+    if (!p) return { error: 'Profile not found.' };
+    const q = String(question || '').trim().slice(0, 120);
+    const a = normAnswer(answer);
+    if (!q || !a) return { error: 'Pick a question and enter an answer.' };
+    if (!p.recoverySalt) p.recoverySalt = Utils.uid('s');
+    p.recoveryQ = q;
+    p.recoveryAHash = hash(a, p.recoverySalt);
+    if (!saveProfiles(list)) return { error: 'Could not save — your browser is blocking storage.' };
+    return { ok: true };
+  }
+
   function deleteProfile(id, confirmName) {
     const list = loadProfiles();
     const p = list.find(x => x.id === id);
@@ -193,7 +254,8 @@
   const Auth = {
     PROFILES_KEY, SESSION_KEY, DATA_BASE, BACKUP_BASE,
     hash, profiles, sessionProfile, createProfile, findAccount, completeProfile, login, logout,
-    setPassword, deleteProfile, markKeepSample, migrateLegacy, hasLegacy, USERNAME_RE, EMAIL_RE
+    setPassword, deleteProfile, markKeepSample, migrateLegacy, hasLegacy, USERNAME_RE, EMAIL_RE,
+    recoveryInfo, resetPassword, setRecovery
   };
 
   global.Auth = Auth;

@@ -254,3 +254,82 @@ describe('lock screen and app start', () => {
     expect(document.getElementById('toSignUp')).toBeTruthy();
   });
 });
+
+describe('password recovery (forgot password)', () => {
+  it('stores the recovery question with a hashed answer at sign-up', () => {
+    const res = Auth.createProfile(acct({ name: 'Recy', username: 'recy', email: 'recy@example.com', password: 'pass1', recoveryQ: "What is your pet's name?", recoveryA: '  Rex  ' }));
+    expect(res.error).toBeUndefined();
+    const p = Auth.profiles().find(x => x.username === 'recy');
+    expect(p.recoveryQ).toBe("What is your pet's name?");
+    expect(p.recoveryAHash).toBeTruthy();
+    expect(p.recoverySalt).toBeTruthy();
+    expect(JSON.stringify(p)).not.toContain('Rex');
+  });
+
+  it('recoveryInfo reports account + question state', () => {
+    const info = Auth.recoveryInfo('recy');
+    expect(info.found).toBe(true);
+    expect(info.hasPassword).toBe(true);
+    expect(info.hasQuestion).toBe(true);
+    expect(info.question).toContain('pet');
+    expect(Auth.recoveryInfo('nobody-here').found).toBe(false);
+  });
+
+  it('resetPassword: wrong answer rejected, right answer (any case/spacing) resets and logs in', () => {
+    expect(Auth.resetPassword('recy', 'cat', 'newpass').error).toContain('not correct');
+    expect(Auth.resetPassword('recy', '   REX  ', 'newpass').ok).toBe(true);
+    expect(Auth.login('recy', 'newpass')).toBe(true);
+    expect(Auth.login('recy', 'pass1')).toBe(false);
+    Auth.logout();
+  });
+
+  it('recovery still works after the password was reset (independent salt)', () => {
+    expect(Auth.resetPassword('recy', 'rex', 'newpass2').ok).toBe(true);
+    expect(Auth.login('recy', 'newpass2')).toBe(true);
+    Auth.logout();
+  });
+
+  it('email-confirmation fallback works for accounts without a question', () => {
+    const res = Auth.createProfile(acct({ name: 'Norec', username: 'norec', email: 'norec@example.com', password: 'pass1' }));
+    expect(res.error).toBeUndefined();
+    expect(Auth.recoveryInfo('norec').hasQuestion).toBe(false);
+    expect(Auth.resetPassword('norec', '', 'brandnew', 'wrong@example.com').error).toContain('email');
+    expect(Auth.resetPassword('norec', '', 'brandnew', ' NOREC@example.com ').ok).toBe(true);
+    expect(Auth.login('norec', 'brandnew')).toBe(true);
+    Auth.logout();
+  });
+
+  it('setRecovery adds or updates a question (used by Settings)', () => {
+    const p = Auth.profiles().find(x => x.username === 'norec');
+    expect(Auth.setRecovery(p.id, 'What is my locker number?', '  4 2  ').ok).toBe(true);
+    expect(Auth.recoveryInfo('norec').question).toBe('What is my locker number?');
+    expect(Auth.resetPassword('norec', '4 2', 'another1').ok).toBe(true);
+    expect(Auth.login('norec', 'another1')).toBe(true);
+    Auth.logout();
+  });
+
+  it('forgot-password UI flow: unknown account error, then question, then reset signs you in', () => {
+    Auth.logout();
+    App.boot();
+    expect(document.getElementById('toRecovery')).toBeTruthy();
+    document.getElementById('toRecovery').click();
+    document.getElementById('rcId').value = 'ghost';
+    document.getElementById('rcGo').click();
+    expect(document.getElementById('rcErr').textContent).toContain('No account found');
+    document.getElementById('rcId').value = 'recy';
+    document.getElementById('rcGo').click();
+    expect(document.getElementById('rcAns')).toBeTruthy();
+    expect(document.getElementById('rcNew')).toBeTruthy();
+    expect(document.getElementById('rcReset').textContent).toContain('Reset password');
+    document.getElementById('rcAns').value = 'rex';
+    document.getElementById('rcNew').value = 'final123';
+    document.getElementById('rcNew2').value = 'final123';
+    document.getElementById('rcReset').click();
+    expect(document.getElementById('loginRoot')).toBeNull();
+    expect(document.getElementById('app').style.display).not.toBe('none');
+    Auth.logout();
+    App.boot();
+    expect(document.getElementById('loginRoot')).toBeTruthy();
+    expect(document.getElementById('liGo')).toBeTruthy();
+  });
+});

@@ -95,6 +95,52 @@
     });
   }
 
+  const RECOVERY_PRESETS = [
+    "What is your pet's name?",
+    "What is your favorite food?",
+    "What city were you born in?",
+    "What was your first school?",
+    "What is your best friend's name?"
+  ];
+
+  function openRecoverySetup() {
+    const prof = Auth.sessionProfile();
+    if (!prof) return;
+    const cur = prof.recoveryQ || '';
+    const isCustom = !!cur && !RECOVERY_PRESETS.includes(cur);
+    UI.openModal({
+      title: 'Password recovery question',
+      body: `
+        <p class="muted small" style="margin-top:0">If you ever forget your password, answering this question correctly on the sign-in screen lets you set a new one.</p>
+        <div class="field"><label>Question</label>
+          <select class="select" id="rqSel">
+            ${RECOVERY_PRESETS.map(q => `<option value="${H(q)}" ${q === cur ? 'selected' : ''}>${H(q)}</option>`).join('')}
+            <option value="__custom" ${isCustom ? 'selected' : ''}>Write my own question...</option>
+          </select></div>
+        <div class="field" id="rqCustomWrap" style="display:${isCustom ? 'block' : 'none'}"><label>Your question</label><input class="input" id="rqCustom" maxlength="120" value="${isCustom ? H(cur) : ''}" placeholder="e.g. What is my locker number?"></div>
+        <div class="field"><label>Answer</label><input class="input" id="rqAns" maxlength="80" placeholder="${cur ? 'Type a new answer' : 'e.g. Rex'}"></div>
+        <div class="form-error" id="rqErr"></div>`,
+      buttons: [
+        { label: 'Cancel', class: 'btn-ghost', onClick: () => UI.closeModal() },
+        {
+          label: 'Save question', class: 'btn-primary',
+          onClick: () => {
+            const sel = document.getElementById('rqSel');
+            const q = sel.value === '__custom' ? document.getElementById('rqCustom').value : sel.value;
+            const res = Auth.setRecovery(prof.id, q, document.getElementById('rqAns').value);
+            if (res.error) { document.getElementById('rqErr').textContent = res.error; return false; }
+            UI.toast('success', 'Recovery question saved', 'You can now use Forgot password on the sign-in screen.');
+            UI.closeModal();
+            if (Views.settings.render) Views.settings.render(document.getElementById('viewHost'));
+          }
+        }
+      ]
+    });
+    document.getElementById('rqSel').addEventListener('change', e => {
+      document.getElementById('rqCustomWrap').style.display = e.target.value === '__custom' ? 'block' : 'none';
+    });
+  }
+
   function render(host) {
     const state = Store.get();
     const s = state.settings;
@@ -118,6 +164,8 @@
               <button class="btn" id="changePw">🔑 ${prof && prof.passHash ? 'Change password' : 'Add password'}</button>
             </div>
           </div>
+          <div class="settings-row"><div><div class="s-label">Password recovery</div><div class="s-desc">${prof && prof.recoveryQ ? H(prof.recoveryQ) : 'Not set — without a question, a forgotten password can only be reset by confirming this account’s email on the sign-in screen.'}</div></div>
+            <div class="row"><button class="btn btn-sm" id="recQ">${prof && prof.recoveryQ ? 'Change question' : 'Set up'}</button></div></div>
           <div class="settings-row">
             <div><div class="s-label">Version</div><div class="s-desc">Momentum v${H(App.version)} — school-first edition with classes, study sessions, workload balancing, exams, templates, timer, attachments and breaks.</div></div>
             <span class="badge badge-done">Up to date</span>
@@ -304,6 +352,7 @@
     const backupList = host.querySelector('#backupList');
     renderStorageMeter(host.querySelector('#storageMeter'));
     host.querySelector('#changePw').addEventListener('click', openChangePassword);
+    host.querySelector('#recQ').addEventListener('click', openRecoverySetup);
     host.querySelector('#editAccount').addEventListener('click', openAccountDetails);
     const backups = Storage.listBackups();
     if (!backups.length) {

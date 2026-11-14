@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.4.11-windows-app';
+  const APP_VERSION = '2.4.12-forgot-password';
 
   const NAV = [
     { section: 'Overview' },
@@ -507,7 +507,8 @@
         <div class="field"><label>Password</label><input class="input" type="password" id="liPw" autocomplete="current-password"></div>
         <div class="form-error" id="loginErr"></div>
         <button class="btn btn-primary btn-block" id="liGo">Sign in</button>
-        <div class="login-alt">New here, or using a new device or app? <button class="link-btn" id="toSignUp">Create an account</button></div>`);
+        <div class="login-alt">New here, or using a new device or app? <button class="link-btn" id="toSignUp">Create an account</button></div>
+        <div class="login-alt"><button class="link-btn" id="toRecovery">Forgot password?</button></div>`);
       const go = () => {
         const id = root.querySelector('#liUser').value;
         const pw = root.querySelector('#liPw').value;
@@ -523,7 +524,55 @@
       root.querySelector('#liPw').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
       root.querySelector('#liUser').addEventListener('keydown', e => { if (e.key === 'Enter') root.querySelector('#liPw').focus(); });
       root.querySelector('#toSignUp').addEventListener('click', renderSignUp);
+      root.querySelector('#toRecovery').addEventListener('click', renderRecovery);
       root.querySelector('#liUser').focus();
+    }
+
+    function renderRecovery() {
+      renderShell(`
+        <div class="login-form-title">Reset your password</div>
+        <div class="field"><label>Username or email</label><input class="input" id="rcId" placeholder="e.g. alex or you@example.com" autocomplete="username"></div>
+        <div class="form-error" id="rcErr"></div>
+        <button class="btn btn-primary btn-block" id="rcGo">Continue</button>
+        <div class="login-alt">Remembered it? <button class="link-btn" id="toSignIn">Back to sign in</button></div>`);
+      root.querySelector('#toSignIn').addEventListener('click', renderSignIn);
+      root.querySelector('#rcGo').addEventListener('click', () => {
+        const err = root.querySelector('#rcErr');
+        const info = Auth.recoveryInfo(root.querySelector('#rcId').value);
+        if (!info.found) { err.textContent = 'No account found with that username or email.'; return; }
+        if (!info.hasPassword) { err.textContent = 'This account has no password — just go back and sign in.'; return; }
+        renderRecoveryStep2(info);
+      });
+      root.querySelector('#rcId').focus();
+    }
+
+    function renderRecoveryStep2(info) {
+      const byQuestion = info.hasQuestion;
+      renderShell(`
+        <div class="login-form-title">Reset your password</div>
+        <div class="login-sub-left">For <strong>${H(info.username || info.email)}</strong>:</div>
+        ${byQuestion
+          ? `<div class="field"><label>${H(info.question)}</label><input class="input" id="rcAns" placeholder="Your answer"></div>`
+          : `<div class="field"><label>Type the email on this account to confirm it is yours</label><input class="input" id="rcEmail" type="email" placeholder="you@example.com"></div>
+             <p class="muted small" style="margin-top:0">This account has no recovery question yet. After signing in you can add one in Settings — it makes this easier next time.</p>`}
+        <div class="field"><label>New password</label><input class="input" type="password" id="rcNew" autocomplete="new-password"></div>
+        <div class="field"><label>Repeat new password</label><input class="input" type="password" id="rcNew2" autocomplete="new-password"></div>
+        <div class="form-error" id="rcErr"></div>
+        <button class="btn btn-primary btn-block" id="rcReset">Reset password & sign in</button>
+        <div class="login-alt"><button class="link-btn" id="toSignIn">Back to sign in</button></div>`);
+      root.querySelector('#toSignIn').addEventListener('click', renderSignIn);
+      root.querySelector('#rcReset').addEventListener('click', () => {
+        const err = root.querySelector('#rcErr');
+        const newPw = root.querySelector('#rcNew').value;
+        if (newPw !== root.querySelector('#rcNew2').value) { err.textContent = 'The two new passwords don’t match.'; return; }
+        const answer = byQuestion ? root.querySelector('#rcAns').value : '';
+        const emailConfirm = byQuestion ? '' : (root.querySelector('#rcEmail') ? root.querySelector('#rcEmail').value : '');
+        const res = Auth.resetPassword(info.id, answer, newPw, emailConfirm);
+        if (res.error) { err.textContent = res.error; return; }
+        Auth.login(res.username, newPw);
+        finishLogin(Auth.sessionProfile());
+      });
+      (root.querySelector(byQuestion ? '#rcAns' : (root.querySelector('#rcEmail') ? '#rcEmail' : '#rcNew')) || root.querySelector('#rcNew')).focus();
     }
 
     function renderSignUp() {
@@ -539,10 +588,26 @@
           <div class="field"><label>Password *</label><input class="input" type="password" id="suPw" placeholder="At least 4 characters" autocomplete="new-password"></div>
           <div class="field"><label>Repeat password *</label><input class="input" type="password" id="suPw2" autocomplete="new-password"></div>
         </div>
+        <div class="field-row">
+          <div class="field"><label>Recovery question (for Forgot password)</label>
+            <select class="select" id="suRecQ">
+              <option value="What is your pet's name?">What is your pet's name?</option>
+              <option value="What is your favorite food?">What is your favorite food?</option>
+              <option value="What city were you born in?">What city were you born in?</option>
+              <option value="What was your first school?">What was your first school?</option>
+              <option value="What is your best friend's name?">What is your best friend's name?</option>
+              <option value="__custom">Write my own question...</option>
+            </select></div>
+          <div class="field"><label>Answer</label><input class="input" id="suRecA" maxlength="80" placeholder="e.g. Rex"></div>
+        </div>
+        <div class="field" id="suRecQCustomWrap" style="display:none"><label>Your question</label><input class="input" id="suRecQCustom" maxlength="120" placeholder="e.g. What is my locker number?"></div>
         <div class="form-error" id="loginErr"></div>
         <button class="btn btn-primary btn-block" id="suGo">Create account</button>
         <div class="login-alt">Already have an account? <button class="link-btn" id="toSignIn">Sign in</button></div>`);
       root.querySelector('#toSignIn').addEventListener('click', renderSignIn);
+      root.querySelector('#suRecQ').addEventListener('change', e => {
+        root.querySelector('#suRecQCustomWrap').style.display = e.target.value === '__custom' ? 'block' : 'none';
+      });
       root.querySelector('#suGo').addEventListener('click', () => {
         const err = root.querySelector('#loginErr');
         const pw = root.querySelector('#suPw').value;
@@ -552,7 +617,9 @@
           username: root.querySelector('#suUser').value,
           email: root.querySelector('#suEmail').value,
           icon: root.querySelector('#suIcon').value,
-          password: pw
+          password: pw,
+          recoveryQ: root.querySelector('#suRecQ').value === '__custom' ? root.querySelector('#suRecQCustom').value : root.querySelector('#suRecQ').value,
+          recoveryA: root.querySelector('#suRecA').value
         });
         if (res.error) { err.textContent = res.error; return; }
         if (Auth.profiles().length === 1 && Auth.hasLegacy()) Auth.migrateLegacy(res.profile.id);

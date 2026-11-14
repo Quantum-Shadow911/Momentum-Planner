@@ -2,16 +2,22 @@
 (function (global) {
   'use strict';
 
-  const filters = { q: '', prio: '', cat: '', cls: '', type: '', sub: '', status: 'open', tag: '', sort: 'due' };
+  const filters = { q: '', prio: '', cat: '', cls: '', type: '', sub: '', status: 'open', tag: '', sort: 'due', mode: '' };
   let showHistory = false;
+
+  const MODES = {
+    inbox: { title: '📥 Inbox', sub: 'Tasks you captured without a date. Open one to schedule it, or drag it into a day when you are ready.' },
+    personal: { title: '🏠 Other Responsibilities', sub: 'Open tasks that are not tied to a school class — personal, household and everything else.' }
+  };
 
   function render(host) {
     const state = Store.get();
     const allTags = Array.from(new Set(state.tasks.flatMap(t => t.tags))).sort();
+    const mode = MODES[filters.mode] || { title: 'Assignments', sub: 'Create, organize and track everything on your plate.' };
 
     host.innerHTML = `
       <div class="page-head">
-        <div><h2>Assignments</h2><div class="sub">Create, organize and track everything on your plate.</div></div>
+        <div><h2>${H(mode.title)}</h2><div class="sub">${H(mode.sub)}</div></div>
         <div class="row">
           <button class="btn" id="newFromTpl">📋 From template</button>
           <button class="btn btn-primary" id="newTaskBtn">＋ New task</button>
@@ -72,13 +78,13 @@
     host.querySelector('#newFromTpl').addEventListener('click', () => UI.openTemplatePicker({ dueDate: null, classId: filters.cls !== 'none' ? filters.cls : null }));
     const bind = (id, key) => {
       const el = host.querySelector(id);
-      el.addEventListener('change', () => { filters[key] = el.value; renderList(); });
+      el.addEventListener('change', () => { filters[key] = el.value; filters.mode = ''; renderList(); });
     };
     host.querySelector('#fQ').addEventListener('input', Utils.debounce(() => { filters.q = host.querySelector('#fQ').value; renderList(); }, 150));
     bind('#fStatus', 'status'); bind('#fPrio', 'prio'); bind('#fCat', 'cat'); bind('#fTag', 'tag'); bind('#fSort', 'sort');
     bind('#fCls', 'cls'); bind('#fType', 'type'); bind('#fSub', 'sub');
     host.querySelector('#clearFilters').addEventListener('click', () => {
-      Object.assign(filters, { q: '', prio: '', cat: '', cls: '', type: '', sub: '', status: 'open', tag: '' });
+      Object.assign(filters, { q: '', prio: '', cat: '', cls: '', type: '', sub: '', status: 'open', tag: '', mode: '' });
       render(host);
     });
     host.querySelector('#toggleHistory').addEventListener('click', () => { showHistory = !showHistory; render(host); });

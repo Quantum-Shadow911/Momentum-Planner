@@ -132,18 +132,21 @@ describe('theme & interactions', () => {
     App.setTheme('light');
   });
 
-  it('nav Inbox opens the undated inbox filter (regression: mapping ran after the view guard)', () => {
+  it('nav Inbox opens a dedicated Inbox page (regression: mapping ran after the view guard)', () => {
     document.querySelector('[data-view="inbox"]').click();
-    expect(document.getElementById('topbarTitle').textContent).toBe('Assignments');
+    expect(document.getElementById('topbarTitle').textContent).toBe('Inbox');
+    expect(document.querySelector('#viewHost h2').textContent).toBe('📥 Inbox');
     expect(document.querySelector('#fStatus').value).toBe('undated');
     expect(document.getElementById('taskList')).toBeTruthy();
   });
 
-  it('undated tasks appear in the Inbox and Other Responsibilities filters non-school tasks', () => {
+  it('undated tasks appear in the Inbox; Other Responsibilities is its own page for non-school tasks', () => {
     Store.saveTask({ title: 'Captured idea', dueDate: null, startDate: null, time: null });
     document.querySelector('[data-view="inbox"]').click();
     expect(document.getElementById('taskList').textContent).toContain('Captured idea');
     document.querySelector('[data-view="personal"]').click();
+    expect(document.getElementById('topbarTitle').textContent).toBe('Other Responsibilities');
+    expect(document.querySelector('#viewHost h2').textContent).toBe('🏠 Other Responsibilities');
     expect(document.querySelector('#fStatus').value).toBe('open');
     expect(document.querySelector('#fCls').value).toBe('none');
   });

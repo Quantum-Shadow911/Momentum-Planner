@@ -52,19 +52,22 @@
   }
 
   function go(view, opts) {
+    let titleOverride = null;
     if (view === 'inbox') {
       view = 'tasks';
-      if (Views.tasks.preset) Views.tasks.preset({ status: 'undated', cls: '', sub: '' });
+      titleOverride = 'Inbox';
+      if (Views.tasks.preset) Views.tasks.preset({ status: 'undated', cls: '', sub: '', mode: 'inbox' });
     }
     if (view === 'personal') {
       view = 'tasks';
-      if (Views.tasks.preset) Views.tasks.preset({ status: 'open', cls: 'none', sub: '' });
+      titleOverride = 'Other Responsibilities';
+      if (Views.tasks.preset) Views.tasks.preset({ status: 'open', cls: 'none', sub: '', mode: 'personal' });
     }
     if (!Views[view]) view = 'dashboard';
     currentView = view;
     const host = document.getElementById('viewHost');
     Views[view].render(host);
-    document.getElementById('topbarTitle').textContent = Views[view].title;
+    document.getElementById('topbarTitle').textContent = titleOverride || Views[view].title;
     buildNav();
     host.focus({ preventScroll: true });
     window.scrollTo({ top: 0 });

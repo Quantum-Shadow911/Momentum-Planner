@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.5.2';
+  const APP_VERSION = '2.5.3';
 
   const NAV = [
     { section: 'Overview' },
@@ -497,32 +497,57 @@
       if (cancel) cancel.addEventListener('click', renderSignIn);
     }
 
+    function maskEmail(email) {
+      const e = String(email || '');
+      if (!e || !e.includes('@')) return '';
+      const at = e.indexOf('@');
+      const local = e.slice(0, at);
+      const shown = local.slice(0, Math.min(2, local.length));
+      return shown + '\u2022\u2022\u2022@' + e.slice(at + 1);
+    }
+
     function renderSignIn() {
+      const accounts = Auth.profiles();
+      const last = Auth.lastLogin();
+      const chips = accounts.map(p => {
+        const meta = '@' + (p.username || '') + (p.email ? ' \u00b7 ' + maskEmail(p.email) : '');
+        return `<button type="button" class="link-btn acct-chip" data-user="${H(p.username || p.email || '')}" title="Use this account">${H(p.icon || '\ud83d\ude42')} <strong>${H(p.name)}</strong> <span class="muted small">${H(meta)}</span></button>`;
+      }).join('');
       renderShell(`
         <div class="login-form-title">Sign in</div>
-        <div class="field"><label>Username or email</label><input class="input" id="liUser" maxlength="120" placeholder="e.g. alex or you@example.com" autocomplete="username"></div>
+        ${accounts.length ? `<div class="muted small" style="margin-bottom:6px">Accounts on this device \u2014 tap yours:</div><div class="acct-chips">${chips}</div>` : ''}
+        <div class="field"><label>Username or email</label><input class="input" id="liUser" maxlength="120" placeholder="e.g. alex or you@example.com" autocomplete="username" value="${H(last)}"></div>
         <div class="field"><label>Password</label><input class="input" type="password" id="liPw" autocomplete="current-password"></div>
         <div class="form-error" id="loginErr"></div>
         <button class="btn btn-primary btn-block" id="liGo">Sign in</button>
         <div class="login-alt">New here, or using a new device or app? <button class="link-btn" id="toSignUp">Create an account</button></div>
         <div class="login-alt"><button class="link-btn" id="toRecovery">Forgot password?</button></div>`);
+      root.querySelectorAll('.acct-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          root.querySelector('#liUser').value = chip.getAttribute('data-user') || '';
+          root.querySelector('#liPw').focus();
+        });
+      });
       const go = () => {
         const id = root.querySelector('#liUser').value;
         const pw = root.querySelector('#liPw').value;
         if (!id.trim()) { root.querySelector('#loginErr').textContent = 'Enter your username or email.'; return; }
         if (Auth.login(id, pw)) { finishLogin(Auth.sessionProfile()); return; }
         if (!Auth.profiles().length) {
-          root.querySelector('#loginErr').textContent = 'No accounts exist on this device yet — click “Create an account” below. Accounts don’t transfer between browsers or devices.';
+          root.querySelector('#loginErr').textContent = 'No accounts exist on this device yet \u2014 click \u201cCreate an account\u201d below. Accounts only exist in the same browser on the same device: the website, a downloaded copy, and the desktop app each keep separate accounts.';
           return;
         }
-        root.querySelector('#loginErr').textContent = 'Wrong username/email or password — try again.';
+        const known = Auth.findAccount(id);
+        root.querySelector('#loginErr').textContent = known
+          ? 'Wrong password for ' + (known.name || 'this account') + ' \u2014 try again, or use \u201cForgot password?\u201d below. Passwords are never stored readable, so they can only be reset, not shown.'
+          : 'No account with that username or email on this device \u2014 check the list above, or create an account. Accounts don\u2019t transfer between browsers or devices.';
       };
       root.querySelector('#liGo').addEventListener('click', go);
       root.querySelector('#liPw').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
       root.querySelector('#liUser').addEventListener('keydown', e => { if (e.key === 'Enter') root.querySelector('#liPw').focus(); });
       root.querySelector('#toSignUp').addEventListener('click', renderSignUp);
       root.querySelector('#toRecovery').addEventListener('click', renderRecovery);
-      root.querySelector('#liUser').focus();
+      if (last) root.querySelector('#liPw').focus(); else root.querySelector('#liUser').focus();
     }
 
     function renderRecovery() {

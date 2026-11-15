@@ -5,6 +5,7 @@
 
   const PROFILES_KEY = 'momentum.profiles.v1';
   const SESSION_KEY = 'momentum.session.v1';
+  const LAST_KEY = 'momentum.lastLogin.v1';
   const DATA_BASE = 'momentum.data.v1';
   const BACKUP_BASE = 'momentum.backups.v1';
 
@@ -119,9 +120,19 @@
     const p = findAccount(idOr);
     if (!p) return false;
     if (p.passHash && hash(String(password || ''), p.salt) !== p.passHash) return false;
-    try { global.localStorage.setItem(SESSION_KEY, JSON.stringify({ profileId: p.id, at: Date.now() })); }
+    try {
+      global.localStorage.setItem(SESSION_KEY, JSON.stringify({ profileId: p.id, at: Date.now() }));
+      global.localStorage.setItem(LAST_KEY, p.username || p.email || '');
+    }
     catch (e) { return false; }
     return true;
+  }
+
+  /* Identifier (username or email) of the most recent successful sign-in on
+     this device, so the sign-in screen can prefill it. Not a password. */
+  function lastLogin() {
+    try { return global.localStorage.getItem(LAST_KEY) || ''; }
+    catch (e) { return ''; }
   }
 
   function completeProfile(id, username, email) {
@@ -222,6 +233,12 @@
       global.localStorage.removeItem(DATA_BASE + '.' + id);
       global.localStorage.removeItem(BACKUP_BASE + '.' + id);
     } catch (e) { /* ignore */ }
+    try {
+      const last = (global.localStorage.getItem(LAST_KEY) || '').trim().toLowerCase();
+      if (last && (last === (p.username || '').toLowerCase() || last === (p.email || '').toLowerCase() || last === (p.name || '').toLowerCase())) {
+        global.localStorage.removeItem(LAST_KEY);
+      }
+    } catch (e) { /* ignore */ }
     saveProfiles(list.filter(x => x.id !== id));
     return { ok: true };
   }
@@ -252,8 +269,8 @@
   }
 
   const Auth = {
-    PROFILES_KEY, SESSION_KEY, DATA_BASE, BACKUP_BASE,
-    hash, profiles, sessionProfile, createProfile, findAccount, completeProfile, login, logout,
+    PROFILES_KEY, SESSION_KEY, LAST_KEY, DATA_BASE, BACKUP_BASE,
+    hash, profiles, sessionProfile, createProfile, findAccount, completeProfile, login, logout, lastLogin,
     setPassword, deleteProfile, markKeepSample, migrateLegacy, hasLegacy, USERNAME_RE, EMAIL_RE,
     recoveryInfo, resetPassword, setRecovery
   };

@@ -889,6 +889,14 @@ html[data-theme="dark"] .nav-item.active { color: #a5b4fc; }
 .login-form-title { font-size: 17px; font-weight: 700; margin-bottom: 12px; }
 .login-sub-left { color: var(--text-2); font-size: 13.5px; margin-bottom: 12px; line-height: 1.5; }
 .login-alt { text-align: center; margin-top: 14px; font-size: 13.5px; color: var(--text-2); }
+.acct-chips { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.acct-chip {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 8px 10px; border-radius: 10px; font-size: 13.5px; color: var(--text-1, inherit);
+  background: var(--surface-2, rgba(127,127,127,0.08)); border: 1px solid var(--border, rgba(127,127,127,0.2));
+  cursor: pointer;
+}
+.acct-chip:hover { border-color: var(--accent, #6c8cff); }
 
 /* Danger zone pinned to the bottom corner of the Settings page */
 .danger-corner {

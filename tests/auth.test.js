@@ -344,3 +344,57 @@ describe('password recovery (forgot password)', () => {
     expect(document.getElementById('liGo')).toBeTruthy();
   });
 });
+
+describe('remembered login and account chips (v2.5.3)', () => {
+  it('lastLogin() records the identifier of the most recent successful sign-in', () => {
+    const res = Auth.createProfile(acct({ name: 'Remy', username: 'remy', email: 'remy@example.com', password: '7777' }));
+    expect(res.error).toBeUndefined();
+    expect(Auth.login('remy', '7777')).toBe(true);
+    expect(Auth.lastLogin()).toBe('remy');
+    Auth.login('remy@example.com', '7777');
+    expect(Auth.lastLogin()).toBe('remy');
+    expect(Auth.lastLogin()).not.toContain('7777');
+  });
+
+  it('sign-in screen lists accounts on this device as chips and a chip fills the identifier field', () => {
+    Auth.logout();
+    App.boot();
+    const chips = Array.from(document.querySelectorAll('#loginRoot .acct-chip'));
+    expect(chips.length).toBeGreaterThanOrEqual(1);
+    const chip = chips.find(c => c.textContent.includes('@remy'));
+    expect(chip).toBeTruthy();
+    expect(document.getElementById('liUser').value).toBe('remy');
+    document.getElementById('liUser').value = '';
+    chip.click();
+    expect(document.getElementById('liUser').value).toBe('remy');
+  });
+
+  it('after signing out, the identifier field is prefilled with the last login', () => {
+    Auth.login('remy', '7777');
+    App.startApp(Auth.sessionProfile().id);
+    document.getElementById('lockBtn').click();
+    expect(document.getElementById('loginRoot')).toBeTruthy();
+    expect(document.getElementById('liUser').value).toBe('remy');
+  });
+
+  it('wrong password for a known account explains that passwords can only be reset', () => {
+    document.getElementById('liUser').value = 'remy';
+    document.getElementById('liPw').value = 'nope';
+    document.getElementById('liGo').click();
+    expect(document.getElementById('loginErr').textContent).toContain('Wrong password for');
+    expect(document.getElementById('loginErr').textContent).toContain('never stored readable');
+  });
+
+  it('unknown identifier says the account is not on this device', () => {
+    document.getElementById('liUser').value = 'ghost';
+    document.getElementById('liPw').value = 'nope';
+    document.getElementById('liGo').click();
+    expect(document.getElementById('loginErr').textContent).toContain('No account with that username or email on this device');
+  });
+
+  it('deleting an account clears the remembered identifier', () => {
+    expect(Auth.lastLogin()).toBe('remy');
+    Auth.deleteProfile(Auth.profiles().find(p => p.username === 'remy').id, 'Remy');
+    expect(Auth.lastLogin()).toBe('');
+  });
+});

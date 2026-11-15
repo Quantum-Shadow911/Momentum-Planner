@@ -155,7 +155,6 @@
     const s = state.settings;
     const prof = Auth.sessionProfile();
     const notifState = global.Reminders.notificationState();
-    const cfg = s.ai || { enabled: false, baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-small-latest', apiKey: '' };
 
     host.innerHTML = `
       <div class="page-head">
@@ -221,25 +220,6 @@
               <div class="s-desc" id="notifDesc">${notifDescText(notifState)}</div></div>
               <div id="notifAction"></div>
           </div>
-        </div>
-
-        <div class="card">
-          <div class="card-title"><span>✨ AI assistant (optional)</span></div>
-          <p class="muted small" style="margin-top:0">Momentum's smart tools — ✨ Break into steps, 🧪 Study kits, ✨ Describe a task, and weekly insights — work for everyone with the <strong>built-in smart engine</strong>: no account, key or internet needed. Optionally connect your own AI model to make them smarter.</p>
-          <div class="settings-row">
-            <div><div class="s-label">Use a remote AI model</div><div class="s-desc">Off = built-in engine only (private, offline). On = the tools also ask your AI model, and fall back to the built-in engine if it can't be reached.</div></div>
-            <label class="check-row"><input type="checkbox" id="aiEnabled" ${cfg.enabled ? 'checked' : ''}> Enabled</label>
-          </div>
-          <div class="field-row-3">
-            <div class="field"><label>API base URL</label><input class="input" id="aiBaseUrl" placeholder="https://api.mistral.ai/v1" value="${H(cfg.baseUrl)}"></div>
-            <div class="field"><label>Model</label><input class="input" id="aiModel" placeholder="mistral-small-latest" value="${H(cfg.model)}"></div>
-            <div class="field"><label>API key <span class="muted">(kept in this browser only)</span></label><input class="input" type="password" id="aiApiKey" placeholder="paste your key" value="${H(cfg.apiKey)}"></div>
-          </div>
-          <div class="row" style="margin-bottom:10px">
-            <button class="btn btn-sm" id="aiTest">Test connection</button>
-            <span class="muted small" id="aiStatus"></span>
-          </div>
-          <div class="settings-row" style="margin-bottom:0"><div><div class="s-label">Privacy</div><div class="s-desc">When a remote model is on, only a task's title, description and type are sent to the model you choose — never your name, school, teachers, full planner or account data. Your API key is stored only in this browser and is never included in exports. All AI suggestions are previews: nothing is saved until you confirm.</div></div></div>
         </div>
 
         <div class="card">
@@ -312,24 +292,6 @@
     host.querySelector('#setWeekStart').addEventListener('change', e => Store.updateSettings({ weekStartsOn: Number(e.target.value) }));
     host.querySelector('#setReminder').addEventListener('change', e => Store.updateSettings({ reminderDefault: Number(e.target.value) }));
     host.querySelector('#setLoadLimit').addEventListener('change', e => Store.updateSettings({ dailyLoadLimit: Number(e.target.value) }));
-
-    /* AI assistant */
-    const aiSave = () => Store.updateSettings({
-      ai: {
-        enabled: host.querySelector('#aiEnabled').checked,
-        baseUrl: host.querySelector('#aiBaseUrl').value.trim(),
-        model: host.querySelector('#aiModel').value.trim(),
-        apiKey: host.querySelector('#aiApiKey').value.trim()
-      }
-    });
-    ['aiEnabled', 'aiBaseUrl', 'aiModel', 'aiApiKey'].forEach(id => host.querySelector('#' + id).addEventListener('change', aiSave));
-    host.querySelector('#aiTest').addEventListener('click', () => {
-      aiSave();
-      const st = host.querySelector('#aiStatus');
-      st.textContent = '⏳ Testing…';
-      AI.testConnection().then(() => { st.textContent = '✅ Connected — ' + (Store.get().settings.ai.model || 'model'); })
-        .catch(err => { st.textContent = '⚠ ' + (err && err.message || 'Connection failed'); });
-    });
 
     /* notifications */
     const notifAction = host.querySelector('#notifAction');

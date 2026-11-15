@@ -48,8 +48,7 @@
         reminderDefault: 30,
         hideCompleted: false,
         dailyLoadLimit: 180,
-        seeded: false,
-        ai: { enabled: false, baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-small-latest', apiKey: '' }
+        seeded: false
       }
     };
   }
@@ -63,23 +62,6 @@
     return Utils.parseDate(v) ? v : null;
   }
   function timeOrNull(v) { return typeof v === 'string' && /^([01]?\d|2[0-3]):[0-5]\d$/.test(v) ? v : null; }
-
-  function normalizeStudyKit(k) {
-    if (!k || typeof k !== 'object') return null;
-    const obj = {
-      flashcards: arr(k.flashcards).slice(0, 20).map(c => ({ front: str(c && c.front).slice(0, 200), back: str(c && c.back).slice(0, 500) })).filter(c => c.front && c.back),
-      quiz: arr(k.quiz).slice(0, 10).map(q => {
-        const choices = arr(q && q.choices).filter(x => typeof x === 'string').map(x => x.slice(0, 200)).slice(0, 6);
-        const answer = Utils.clamp(num(q && q.answer, 0), 0, 5);
-        return { q: str(q && q.q).slice(0, 300), choices, answer };
-      }).filter(q => q.q && q.choices.length >= 2 && q.answer < q.choices.length),
-      summary: str(k.summary).slice(0, 2000),
-      concepts: arr(k.concepts).filter(x => typeof x === 'string').map(x => x.slice(0, 80)).slice(0, 10),
-      createdAt: str(k.createdAt) || null,
-      source: str(k.source) === 'ai' ? 'ai' : 'built-in'
-    };
-    return (obj.flashcards.length || obj.quiz.length || obj.summary || obj.concepts.length) ? obj : null;
-  }
 
   function normalizeTask(t) {
     if (!t || typeof t !== 'object') return null;
@@ -122,7 +104,6 @@
       status: STATUSES.includes(t.status) ? t.status : 'not-started',
       dependsOn: Array.from(new Set(arr(t.dependsOn).filter(x => typeof x === 'string'))).slice(0, 20),
       projectId: str(t.projectId) || null,
-      studyKit: normalizeStudyKit(t.studyKit),
       completedAt: t.completedAt ? str(t.completedAt) : null,
       createdAt: t.createdAt ? str(t.createdAt) : now,
       updatedAt: now,
@@ -307,14 +288,6 @@
     out.dailyLoadLimit = Utils.clamp(num(s.dailyLoadLimit, out.dailyLoadLimit || 180), 15, 720);
     out.seeded = bool(s.seeded);
     if (typeof s.lastVersion === 'string') out.lastVersion = s.lastVersion.slice(0, 40);
-    if (s.ai && typeof s.ai === 'object') {
-      out.ai = {
-        enabled: bool(s.ai.enabled),
-        baseUrl: typeof s.ai.baseUrl === 'string' ? s.ai.baseUrl.trim().slice(0, 300) : (out.ai && out.ai.baseUrl) || '',
-        model: typeof s.ai.model === 'string' ? s.ai.model.trim().slice(0, 120) : (out.ai && out.ai.model) || '',
-        apiKey: typeof s.ai.apiKey === 'string' ? s.ai.apiKey.slice(0, 400) : (out.ai && out.ai.apiKey) || ''
-      };
-    }
     return out;
   }
 
@@ -514,7 +487,7 @@
   const Storage = {
     KEY, PRIORITIES, STATUSES, RECURRENCE_TYPES, ASSIGNMENT_TYPES, SUBMISSION_STATES, MAX_ATTACHMENT_BYTES,
     setProfile, key,
-    emptyState, normalize, normalizeTask, normalizeStudyKit, normalizeProject, normalizeGoal, normalizeNote, normalizeCategory, normalizeClass, normalizeEvent, normalizeSession, normalizeAttachment, normalizeBreak,
+    emptyState, normalize, normalizeTask, normalizeProject, normalizeGoal, normalizeNote, normalizeCategory, normalizeClass, normalizeEvent, normalizeSession, normalizeAttachment, normalizeBreak,
     load, save, lastSave, probe, snapshot, listBackups, restoreBackup, pushTrash, restoreFromTrash, exportJson, importJson, profileId
   };
 

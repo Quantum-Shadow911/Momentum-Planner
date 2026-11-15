@@ -11,7 +11,7 @@ npm start          # serves at http://localhost:4173 (zero-dep Node server)
 …or open `index.html` directly in a browser, or host the folder statically (works on GitHub Pages).
 
 ```bash
-npm test           # run the 196-test suite (Important Dates replaces the standalone Calendar nav item) (Vitest + jsdom)
+npm test           # run the 169-test suite (Important Dates replaces the standalone Calendar nav item) (Vitest + jsdom)
 npm run test:watch
 ```
 
@@ -25,7 +25,6 @@ npm run test:watch
 | **Assignment templates** | One-click templates (homework, essay, lab report, project, exam prep, reading) that pre-fill type, checklist and a realistic session plan spread before the due date, skipping breaks |
 | **Exams & Quizzes** | Dedicated view: every upcoming assessment grouped per class with countdown, revision sessions and minutes-revised tracking, one-click “＋ Revision session”, past/missed and recently completed sections |
 | **Study timer** | Floating ⏱ timer (refresh-safe) started from any task; on finish it logs real minutes into the task's “time spent” |
-| **AI tools (built-in, optional remote model)** | ✨ Describe a task (natural language → task preview), ✨ Break into steps (checklist + study sessions), ✨ time estimates that learn from your history, 🧪 Study kits (flashcards, quiz, summary, key concepts from the task's own text), ✍️ writing feedback, 🧪 weekly insights from real data, ✨ suggested study plan in the Daily Planner. Everything works offline with the built-in smart engine; connect your own AI model in Settings → AI assistant (optional, key stays in your browser, previews only — nothing is saved until you confirm) |
 | **Study Timer & Essentials** | Dedicated sidebar page: pick a task, run the focus timer (pause/resume/finish/discard), see study stats (today, last 7 days, all-time, sessions done), today's planned sessions with one-click ▶ Study this, a persisted 6-item get-ready checklist and study tips |
 | **Attachments** | Attach worksheets and instruction files (up to 2 MB each, stored locally in your browser) to any task; download from the task viewer |
 | **School breaks** | Define holiday ranges in Settings; they are shaded in the calendar, flagged in the daily planner and skipped by workload balancing and smart rescheduling |

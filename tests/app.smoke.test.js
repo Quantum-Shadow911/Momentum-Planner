@@ -40,7 +40,6 @@ await import('../js/storage.js');
 await import('../js/store.js');
 await import('../js/priority.js');
 await import('../js/planner.js');
-await import('../js/ai.js');
 await import('../js/timer.js');
 await import('../js/charts.js');
 await import('../js/reminders.js');
@@ -58,7 +57,7 @@ await import('../js/views/analytics.js');
 await import('../js/views/study.js');
 await import('../js/views/settings.js');
 
-for (const k of ['Utils', 'H', 'Storage', 'Store', 'Priority', 'Planner', 'AI', 'Timer', 'Charts', 'Reminders', 'UI', 'Views']) {
+for (const k of ['Utils', 'H', 'Storage', 'Store', 'Priority', 'Planner', 'Timer', 'Charts', 'Reminders', 'UI', 'Views']) {
   globalThis[k] = dom.window[k];
 }
 await import('../js/app.js');
@@ -78,8 +77,8 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(7);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.5.0');
-    expect(Store.get().settings.lastVersion).toBe('2.5.0');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.13');
+    expect(Store.get().settings.lastVersion).toBe('2.4.13');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(13);
     const navViews = [...document.querySelectorAll('.nav-item')].map(b => b.dataset.view);
@@ -532,126 +531,5 @@ describe('safety & storage reliability', () => {
     const meter = document.getElementById('storageMeter');
     expect(meter.textContent).toContain('automatic backups');
     expect(meter.textContent).toContain('snapshot');
-  });
-});
-
-describe('AI tools', () => {
-  it('dashboard has a Describe button that opens the describe-a-task modal with a working preview', () => {
-    App.go('dashboard');
-    expect(document.getElementById('dashDescribe')).toBeTruthy();
-    document.getElementById('dashDescribe').click();
-    const modal = document.querySelector('.modal-backdrop .modal');
-    expect(modal).toBeTruthy();
-    expect(modal.textContent).toContain('Describe a task');
-    document.getElementById('aiDescText').value = 'Math worksheet 4.2 due tomorrow, high priority, 45 min';
-    [...modal.querySelectorAll('.btn')].find(b => b.textContent.includes('Preview task')).click();
-    const prev = document.getElementById('aiDescPreview');
-    expect(prev.textContent).toContain('New task preview');
-    expect(prev.textContent).toContain('High');
-    [...modal.querySelectorAll('.btn')].find(b => b.textContent === 'Close').click();
-  });
-
-  it('describe preview can add the parsed task for real', () => {
-    UI.openDescribeTask();
-    const modal = document.querySelector('.modal-backdrop .modal');
-    document.getElementById('aiDescText').value = 'Return library book tomorrow';
-    [...modal.querySelectorAll('.btn')].find(b => b.textContent.includes('Preview task')).click();
-    [...modal.querySelectorAll('.btn')].find(b => b.textContent.includes('Add task')).click();
-    const t = Store.get().tasks.find(x => x.title.includes('Return library book'));
-    expect(t).toBeTruthy();
-    expect(t.dueDate).toBeTruthy();
-    Store.deleteTask(t.id);
-  });
-
-  it('task editor has Break into steps, estimate and writing feedback wired', () => {
-    App.go('tasks');
-    document.getElementById('newTaskBtn').click();
-    const modal = document.querySelector('.modal-backdrop .modal');
-    expect(modal.querySelector('#aiBreakdownBtn')).toBeTruthy();
-    expect(modal.querySelector('#aiEstimateBtn')).toBeTruthy();
-    expect(modal.querySelector('#aiWritingBtn')).toBeTruthy();
-    modal.querySelector('[name="title"]').value = 'History essay';
-    modal.querySelector('[name="assignmentType"]').value = 'essay';
-    modal.querySelector('#aiEstimateBtn').click();
-    expect(modal.querySelector('[name="estimateMin"]').value).not.toBe('');
-    expect(modal.querySelector('#aiEstimateOut').textContent).toContain('min');
-    modal.querySelector('[name="notes"]').value = 'the the draft is gonna have a lot of stuff';
-    modal.querySelector('#aiWritingBtn').click();
-    expect(modal.querySelector('#aiWritingOut').textContent).toContain('Repeated word');
-    modal.querySelector('#aiBreakdownBtn').click();
-    return new Promise(r => setTimeout(r, 50)).then(() => {
-      const out = modal.querySelector('#aiBreakdownOut');
-      expect(out.textContent).toContain('built-in smart engine');
-      const subs = [...out.querySelectorAll('.btn')].find(b => b.textContent.includes('Add as subtasks'));
-      expect(subs).toBeTruthy();
-      subs.click();
-      expect(modal.querySelectorAll('#subtasksEditor .subtask-editor-row').length).toBeGreaterThanOrEqual(3);
-      [...document.querySelectorAll('.modal-backdrop [data-close]')].forEach(b => b.click());
-    });
-  });
-
-  it('task viewer opens a study kit built from the task description and can save it', () => {
-    const t = Store.saveTask({
-      title: 'Water cycle presentation',
-      description: 'Evaporation is when the sun heats water and it turns into vapor. Condensation is when vapor cools into clouds. Present on Friday with diagrams.'
-    });
-    UI.openTaskViewer(t.id);
-    const modal = document.querySelector('.modal-backdrop .modal');
-    const kitBtn = [...modal.querySelectorAll('.btn')].find(b => b.textContent.includes('Study kit'));
-    expect(kitBtn).toBeTruthy();
-    kitBtn.click();
-    return new Promise(r => setTimeout(r, 50)).then(() => {
-      const kitModal = document.querySelector('.modal-backdrop .modal');
-      expect(kitModal.textContent).toContain('Study kit');
-      expect(kitModal.textContent).toContain('Flashcards');
-      const save = [...kitModal.querySelectorAll('.btn')].find(b => b.textContent === 'Save to task');
-      save.click();
-      expect(Store.getTask(t.id).studyKit).toBeTruthy();
-      expect(Store.getTask(t.id).studyKit.flashcards.length).toBeGreaterThan(0);
-      [...document.querySelectorAll('.modal-backdrop [data-close]')].forEach(b => b.click());
-      Store.deleteTask(t.id);
-    });
-  });
-
-  it('daily planner suggests sessions and applying them creates real study sessions', () => {
-    const today = Utils.todayStr();
-    const t = Store.saveTask({ title: 'Suggest plan task', dueDate: Utils.addDays(today, 4), estimateMin: 90 });
-    App.go('daily');
-    expect(document.getElementById('dSuggest')).toBeTruthy();
-    document.getElementById('dSuggest').click();
-    const modal = document.querySelector('.modal-backdrop .modal');
-    expect(modal.textContent).toContain('Suggested study plan');
-    [...modal.querySelectorAll('.btn')].find(b => b.textContent === 'Apply').click();
-    const saved = Store.getTask(t.id);
-    expect(saved.sessions.length).toBeGreaterThan(0);
-    for (const s of saved.sessions) expect(s.date < t.dueDate).toBe(true);
-    Store.deleteTask(t.id);
-  });
-
-  it('weekly review modal shows the data-driven insights section', () => {
-    App.go('dashboard');
-    document.getElementById('dashReview').click();
-    return new Promise(r => setTimeout(r, 50)).then(() => {
-      const ins = document.getElementById('wInsights');
-      expect(ins).toBeTruthy();
-      expect(ins.textContent).toContain('This week in data');
-      expect(ins.textContent).toContain('built-in engine');
-      [...document.querySelectorAll('.modal-backdrop [data-close]')].forEach(b => b.click());
-    });
-  });
-
-  it('settings has the AI assistant section with privacy note and no key by default', () => {
-    App.go('settings');
-    const card = [...document.querySelectorAll('.card')].find(c => c.textContent.includes('AI assistant'));
-    expect(card).toBeTruthy();
-    expect(card.textContent).toContain('built-in smart engine');
-    expect(card.textContent).toContain('never your name, school, teachers');
-    expect(document.getElementById('aiEnabled').checked).toBe(false);
-    expect(document.getElementById('aiApiKey').value).toBe('');
-    document.getElementById('aiEnabled').checked = true;
-    document.getElementById('aiModel').value = 'mistral-small-latest';
-    document.getElementById('aiModel').dispatchEvent(new window.Event('change'));
-    expect(Store.get().settings.ai.enabled).toBe(true);
-    Store.updateSettings({ ai: { enabled: false, baseUrl: '', model: '', apiKey: '' } });
   });
 });

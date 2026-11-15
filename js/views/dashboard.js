@@ -40,6 +40,7 @@
           <input class="input" id="dashQuickDate" type="date" value="${today}" style="flex:0 0 140px" title="Due date — clear for no date">
           <button class="btn btn-primary" id="dashQuickBtn">＋ Add</button>
           <button class="btn btn-ghost" id="dashReview" title="Summarize unfinished work, upcoming tests, workload and activities">📋 Weekly review</button>
+          <button class="btn btn-ghost" id="dashDescribe" title="Describe a task in your own words — the details are picked out automatically">✨ Describe</button>
         </div>
       </div>
 
@@ -148,6 +149,7 @@
     host.querySelector('#dashQuickBtn').addEventListener('click', doQuick);
     qi.addEventListener('keydown', e => { if (e.key === 'Enter') doQuick(); });
     host.querySelector('#dashReview').addEventListener('click', openWeeklyReview);
+    host.querySelector('#dashDescribe').addEventListener('click', () => UI.openDescribeTask());
 
     if (reco) {
       host.querySelector('#recoTitle').addEventListener('click', () => UI.openTaskViewer(reco.task.id));
@@ -419,6 +421,7 @@
     const sect = (title, inner, empty) => `<div class="review-sect"><div class="review-sect-title">${title}</div>${inner || `<div class="muted small">${empty}</div>`}</div>`;
 
     const html = `
+      <div id="wInsights" class="review-sect" style="margin-bottom:10px"><div class="review-sect-title">🧪 This week in data</div><div class="muted small">⏳ Crunching your real numbers…</div></div>
       <div class="review-grid">
         ${sect(`\u26a0 Overdue (${overdue.length})`, overdue.slice(0, 6).map(taskLine).join(''), 'Nothing overdue \u2014 great position for the week.' + (overdue.length > 6 ? `<div class="muted small">\u2026and ${overdue.length - 6} more in Assignments.</div>` : ''))}
         ${sect(`📅 Due in the next 7 days (${week.length})`, week.slice(0, 8).map(taskLine).join(''), 'No deadlines in the next week.')}
@@ -433,6 +436,21 @@
     UI.openModal({ title: '📋 Weekly academic review', body: html, large: true, buttons: [{ label: 'Close' }] });
     Array.from(document.querySelectorAll('.modal-backdrop .task-item[data-open]')).forEach(el => {
       el.addEventListener('click', () => { UI.closeModal(); UI.openTaskViewer(el.dataset.open); });
+    });
+    AI.weeklyInsights(state).then(ins => {
+      const el = document.getElementById('wInsights');
+      if (!el) return;
+      el.innerHTML = `
+        <div class="review-sect-title">🧪 This week in data ${ins.source === 'ai' ? '<span class="badge">🤖 via your AI model</span>' : '<span class="badge">✨ built-in engine</span>'}</div>
+        <div class="row-wrap" style="margin-bottom:6px">
+          <span class="badge badge-done">✅ ${ins.completed} completed</span>
+          <span class="badge ${ins.overdue ? 'badge-overdue' : ''}">⏰ ${ins.overdue} overdue</span>
+          <span class="badge">📅 ${ins.dueSoon} due in 7 days</span>
+          ${ins.onTimeRate !== null ? '<span class="badge">⏱ ' + ins.onTimeRate + '% on time</span>' : ''}
+        </div>
+        <div class="small" style="margin-bottom:3px"><strong>Went well:</strong> ${H(ins.wentWell.join(' '))}</div>
+        <div class="small" style="margin-bottom:3px"><strong>To improve:</strong> ${H(ins.improve.join(' '))}</div>
+        <div class="small"><strong>Suggestion:</strong> ${H(ins.suggestion)}</div>`;
     });
   }
 

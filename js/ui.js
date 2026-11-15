@@ -350,6 +350,7 @@
     });
     const buttons = [
       { label: '✏️ Edit', class: 'btn-primary', onClick: () => { closeModal(); openTaskEditor(t.id); } },
+      { label: '🧪 Study kit', class: 'btn-ghost', onClick: () => { closeModal(); openStudyKit(t.id); } },
       { label: 'Close', onClick: () => closeModal() }
     ];
     if (t.status !== 'completed' && global.Timer) {
@@ -406,6 +407,8 @@
       <div class="field">
         <label>Description</label>
         <textarea class="textarea" name="description" placeholder="Details, instructions, links to materials…">${H(base.description)}</textarea>
+        <button class="btn btn-sm btn-ghost" id="aiBreakdownBtn" type="button" style="margin-top:6px">✨ Break into steps</button>
+        <div id="aiBreakdownOut" style="margin-top:8px"></div>
       </div>
       <div class="field-row-3">
         <div class="field">
@@ -469,8 +472,9 @@
           <input class="input" type="number" min="0" step="5" name="durationMin" value="${base.durationMin || ''}" placeholder="e.g. 45">
         </div>
         <div class="field">
-          <label>Estimate (min)</label>
+          <label>Estimate (min) <button class="link-btn" id="aiEstimateBtn" type="button">✨ estimate for me</button></label>
           <input class="input" type="number" min="0" step="5" name="estimateMin" value="${base.estimateMin || ''}" placeholder="e.g. 60">
+          <div class="muted small" id="aiEstimateOut" style="margin-top:4px"></div>
         </div>
         <div class="field">
           <label>Time spent (min)</label>
@@ -538,6 +542,8 @@
       <div class="field">
         <label>Notes</label>
         <textarea class="textarea" name="notes" placeholder="Additional notes…">${H(base.notes)}</textarea>
+        <button class="btn btn-sm btn-ghost" id="aiWritingBtn" type="button" style="margin-top:6px">✍️ Review my writing</button>
+        <div id="aiWritingOut" style="margin-top:6px"></div>
       </div>
       <div class="form-error" id="taskFormError"></div>
     `;
@@ -621,6 +627,73 @@
     (base.sessions || []).forEach(addSessionRow);
     body.querySelector('#addSession').addEventListener('click', () => addSessionRow(null));
 
+    /* AI tools — always preview-only; nothing is saved until the user confirms */
+    const aiOut = body.querySelector('#aiBreakdownOut');
+    body.querySelector('#aiBreakdownBtn').addEventListener('click', () => {
+      const draft = {
+        title: body.querySelector('[name="title"]').value.trim(),
+        description: body.querySelector('[name="description"]').value,
+        notes: body.querySelector('[name="notes"]').value,
+        assignmentType: body.querySelector('[name="assignmentType"]').value,
+        dueDate: body.querySelector('[name="dueDate"]').value || null,
+        estimateMin: Number(body.querySelector('[name="estimateMin"]').value) || 0
+      };
+      if (!draft.title && !draft.description.trim()) { aiOut.innerHTML = '<span class="muted small">Add a title or description first.</span>'; return; }
+      aiOut.innerHTML = '<span class="muted small">⏳ Thinking…</span>';
+      AI.breakdown(draft).then(res => {
+        aiOut.innerHTML = `
+          <div class="muted small" style="margin-bottom:4px">${res.source === 'ai' ? '🤖 Suggested by your AI model' : '✨ Suggested by the built-in smart engine'} — tick what you want:</div>
+          <div class="row-wrap">${res.steps.map((s, i) => `
+            <label class="check-row" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:5px 10px">
+              <input type="checkbox" class="ai-step" data-i="${i}" checked> ${H(s.title)} <span class="muted">· ~${H(Utils.fmtDuration(s.minutes))}</span>
+            </label>`).join('')}</div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn btn-sm btn-primary" id="aiAsSubs" type="button">＋ Add as subtasks</button>
+            <button class="btn btn-sm" id="aiAsSes" type="button">📅 Add as study sessions</button>
+          </div>`;
+        const chosen = () => res.steps.filter((_, i) => aiOut.querySelectorAll('.ai-step')[i].checked);
+        aiOut.querySelector('#aiAsSubs').addEventListener('click', () => {
+          const sel = chosen();
+          if (!sel.length) return;
+          sel.forEach(s => addSubRow({ title: s.title }));
+          toast('success', 'Steps added', sel.length + ' subtask row(s) added — save the task to keep them.');
+        });
+        aiOut.querySelector('#aiAsSes').addEventListener('click', () => {
+          const sel = chosen();
+          if (!sel.length) return;
+          const pool = (res.sessions && res.sessions.length) ? res.sessions : sel.map(s => ({ date: null, durationMin: s.minutes, objective: s.title }));
+          sel.forEach((s, i) => {
+            const srcSes = pool[i % pool.length] || {};
+            addSessionRow({ date: srcSes.date || null, time: srcSes.time || null, durationMin: s.minutes, objective: s.title });
+          });
+          toast('success', 'Sessions added', sel.length + ' session row(s) added — set dates if empty, then save.');
+        });
+      }).catch(err => {
+        aiOut.innerHTML = '<span class="muted small">⚠ ' + H(err && err.message || 'Could not generate steps.') + '</span>';
+      });
+    });
+
+    body.querySelector('#aiEstimateBtn').addEventListener('click', () => {
+      const out = body.querySelector('#aiEstimateOut');
+      const draft = {
+        title: body.querySelector('[name="title"]').value.trim(),
+        description: body.querySelector('[name="description"]').value,
+        assignmentType: body.querySelector('[name="assignmentType"]').value,
+        classId: body.querySelector('[name="classId"]').value || null
+      };
+      const res = AI.estimate(draft, Store.get());
+      body.querySelector('[name="estimateMin"]').value = res.anchor;
+      out.textContent = '≈ ' + res.lo + '–' + res.hi + ' min · ' + res.split.map(s => s.label + ' ' + s.minutes).join(' · ') + (res.fromHistory ? ' · based on your history' : '');
+    });
+
+    body.querySelector('#aiWritingBtn').addEventListener('click', () => {
+      const out = body.querySelector('#aiWritingOut');
+      const res = AI.writingFeedback(body.querySelector('[name="notes"]').value);
+      if (res.ok) { out.innerHTML = '<span class="muted small">✅ Looks good — no issues found in ' + res.wordCount + ' words.</span>'; return; }
+      out.innerHTML = '<div class="muted small" style="margin-bottom:4px">' + res.wordCount + ' words · suggestions:</div>' +
+        res.issues.map(i => '<div class="small" style="margin-bottom:3px">' + i.icon + ' <strong>' + H(i.title) + '</strong> — ' + H(i.detail) + '</div>').join('');
+    });
+
     function collect() {
       const f = name => body.querySelector(`[name="${name}"]`);
       const err = body.querySelector('#taskFormError');
@@ -694,6 +767,121 @@
         }
       ]
     });
+  }
+
+  /* ================= AI: study kit & describe-a-task ================= */
+
+  function openStudyKit(id) {
+    const t = Store.getTask(id);
+    if (!t) return;
+    const renderKit = (kit, source) => {
+      const body = document.createElement('div');
+      body.innerHTML = `
+        <div class="muted small" style="margin-top:0">${source === 'ai' ? '🤖 Generated by your AI model' : '✨ Built-in smart engine — built from this task’s description and notes'}</div>
+        ${kit.summary ? `<div class="detail-section"><h4>🗒 Summary</h4><p style="margin:0;color:var(--text-2)">${H(kit.summary)}</p></div>` : ''}
+        ${kit.concepts.length ? `<div class="detail-section"><h4>🔑 Key concepts</h4><div class="row-wrap">${kit.concepts.map(c => '<span class="badge">' + H(c) + '</span>').join('')}</div></div>` : ''}
+        ${kit.flashcards.length ? `<div class="detail-section"><h4>🏆 Flashcards (${kit.flashcards.length}) — tap to flip</h4><div class="task-list">${kit.flashcards.map((c, i) => `
+          <div class="task-item" data-fc="${i}" style="cursor:pointer"><div class="task-main"><div class="task-title">${H(c.front)}</div><div class="muted small fc-back" style="display:none">${H(c.back)}</div></div></div>`).join('')}</div></div>` : ''}
+        ${kit.quiz.length ? `<div class="detail-section"><h4>🧠 Practice quiz (${kit.quiz.length}) — pick an answer</h4>${kit.quiz.map((q, qi) => `
+          <div style="margin-bottom:10px"><div class="task-title" style="font-size:13.5px">${qi + 1}. ${H(q.q)}</div>
+          <div class="row-wrap" data-quiz="${qi}" style="margin-top:4px">${q.choices.map((c, ci) => `<button class="btn btn-sm" data-choice="${ci}" type="button">${H(c)}</button>`).join('')}</div></div>`).join('')}</div>` : ''}
+        ${!kit.summary && !kit.concepts.length && !kit.flashcards.length && !kit.quiz.length ? '<div class="empty"><div class="empty-icon">📝</div>Add a description or notes to this task first — the study kit is built from them.</div>' : ''}`;
+      body.querySelectorAll('[data-fc]').forEach(el => {
+        el.addEventListener('click', () => {
+          const back = el.querySelector('.fc-back');
+          back.style.display = back.style.display === 'none' ? 'block' : 'none';
+        });
+      });
+      body.querySelectorAll('[data-quiz]').forEach(wrap => {
+        const qi = Number(wrap.dataset.quiz);
+        wrap.querySelectorAll('[data-choice]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const pick = Number(btn.dataset.choice);
+            const correct = pick === kit.quiz[qi].answer;
+            btn.classList.add(correct ? 'btn-primary' : 'btn-danger');
+            if (!correct) wrap.querySelectorAll('[data-choice]')[kit.quiz[qi].answer].classList.add('btn-primary');
+          });
+        });
+      });
+      openModal({
+        title: '🧪 Study kit — ' + t.title,
+        body,
+        large: true,
+        buttons: [
+          { label: 'Save to task', class: 'btn-primary', onClick: () => { Store.saveTask({ ...t, studyKit: kit }); toast('success', 'Study kit saved', 'Open this task anytime to see it again.'); closeModal(); } },
+          { label: 'Regenerate', onClick: () => { closeModal(); generate(); } },
+          { label: 'Close', onClick: () => closeModal() }
+        ]
+      });
+    };
+    const generate = () => {
+      if (t.studyKit) { renderKit(t.studyKit, t.studyKit.source); return; }
+      openModal({ title: '🧪 Study kit', body: '<p class="muted">⏳ Building your study kit…</p>', buttons: [{ label: 'Cancel', onClick: () => closeModal() }] });
+      AI.studyKit(t).then(kit => { closeModal(); renderKit(kit, kit.source); })
+        .catch(err => { closeModal(); toast('warning', 'No study kit', err && err.message || 'Could not build a study kit.'); });
+    };
+    generate();
+  }
+
+  function openDescribeTask(preset) {
+    const p = preset || {};
+    const state = Store.get();
+    const body = document.createElement('div');
+    body.innerHTML = `
+      <p class="muted small" style="margin-top:0">Write it the way you'd say it — dates, priority and length are picked out automatically. Example: “Science project due next Thursday, high priority, about an hour”.</p>
+      <div class="field"><label>Description</label>
+        <textarea class="textarea" id="aiDescText" placeholder="e.g. Math worksheet 4.2 due tomorrow at 4pm, high priority, 45 min">${H(p.text || '')}</textarea></div>
+      <div id="aiDescPreview"></div>
+      <div class="muted small" style="margin-top:8px">Works without any AI key using the built-in smart engine. Connect a model in Settings → AI assistant for smarter results. Nothing is saved until you confirm.</div>`;
+    const previewBtn = document.createElement('button');
+    previewBtn.className = 'btn btn-sm btn-primary';
+    previewBtn.textContent = '✨ Preview task';
+    previewBtn.style.marginTop = '8px';
+    body.appendChild(previewBtn);
+    previewBtn.addEventListener('click', () => {
+      const prev = body.querySelector('#aiDescPreview');
+      const parsed = AI.parseTaskText(body.querySelector('#aiDescText').value, state);
+      if (!parsed) { prev.innerHTML = '<span class="muted small">Type something first.</span>'; return; }
+      const cls = state.classes.find(c => c.id === parsed.classId);
+      prev.innerHTML = `
+        <div class="card" style="padding:12px 16px;margin:10px 0">
+          <div class="card-title" style="margin-bottom:6px"><span>📋 New task preview</span></div>
+          <div class="task-title">${H(parsed.title)}</div>
+          <div class="task-meta" style="margin-top:4px">
+            <span class="badge">${parsed.dueDate ? '📅 ' + H(Utils.fmtDateSmart(parsed.dueDate)) : '📍 no deadline'}</span>
+            ${parsed.time ? '<span class="badge">⏰ ' + H(Utils.fmtTime(parsed.time)) + '</span>' : ''}
+            <span class="badge">${{ low: '🟢 Low', medium: '🟡 Medium', high: '🔴 High', urgent: '⚡ Urgent' }[parsed.priority]}</span>
+            ${parsed.estimateMin ? '<span class="badge">⏱ ~' + H(Utils.fmtDuration(parsed.estimateMin)) + '</span>' : ''}
+            ${cls ? '<span class="badge badge-cat"><span class="dot" style="background:' + H(cls.color) + '"></span>' + H(cls.icon + ' ' + cls.name) + '</span>' : ''}
+          </div>
+          ${parsed.matched.length ? '<div class="muted small" style="margin-top:6px">Understood: ' + H(parsed.matched.join(', ')) + '</div>' : '<div class="muted small" style="margin-top:6px">No date or priority detected — the whole text becomes the title.</div>'}
+        </div>`;
+      const actions = document.createElement('div');
+      actions.className = 'row';
+      actions.style.marginTop = '8px';
+      const addBtn = document.createElement('button');
+      addBtn.className = 'btn btn-sm btn-primary';
+      addBtn.textContent = '＋ Add task';
+      addBtn.addEventListener('click', () => {
+        const saved = Store.saveTask({
+          title: parsed.title, dueDate: parsed.dueDate, time: parsed.time,
+          priority: parsed.priority, estimateMin: parsed.estimateMin, classId: parsed.classId
+        });
+        closeModal();
+        toast('success', 'Task added', saved.title);
+      });
+      const editBtn = document.createElement('button');
+      editBtn.className = 'btn btn-sm';
+      editBtn.textContent = '✏️ Open in editor…';
+      editBtn.addEventListener('click', () => {
+        closeModal();
+        openTaskEditor(null, parsed);
+      });
+      actions.appendChild(addBtn);
+      actions.appendChild(editBtn);
+      prev.appendChild(actions);
+    });
+    openModal({ title: '✨ Describe a task', body, buttons: [{ label: 'Close', onClick: () => closeModal() }] });
   }
 
   /* ================= Quick add ================= */
@@ -904,7 +1092,7 @@
     prioBadge, dueBadge, catBadge, tagBadges, statusBadge, catOf,
     classOf, classBadge, typeBadge, submissionBadge, TYPE_LABELS, SUBMISSION_LABELS,
     taskItem, openTaskViewer, openTaskEditor, quickAdd, openCategoryEditor,
-    openTemplatePicker, openSuggestionModal,
+    openTemplatePicker, openSuggestionModal, openDescribeTask, openStudyKit,
     recurrenceLabel, reminderLabel, COLOR_SWATCHES, ICON_CHOICES
   };
 

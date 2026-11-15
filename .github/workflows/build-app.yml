@@ -30,19 +30,19 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: app-v2.5.1
-          name: Momentum (v2.5.1) — Mac & Windows
+          tag_name: app-v2.5.2
+          name: Momentum (v2.5.2) — Mac & Windows
           body: |
             **Momentum as a real desktop application — Mac (.app/.dmg) and Windows (.exe installer).**
 
             ## Mac install
-            1. Download **Momentum-2.5.1-universal.dmg** (or the .zip)
+            1. Download **Momentum-2.5.2-universal.dmg** (or the .zip)
             2. Open the downloaded file
             3. Drag **Momentum** into your **Applications** folder
             4. Open Momentum from Applications
 
             ## Windows install
-            1. Download **Momentum-Setup-2.5.1.exe**
+            1. Download **Momentum-Setup-2.5.2.exe**
             2. Run it (if Windows SmartScreen shows "Windows protected your PC", click **More info** → **Run anyway** — the app is unsigned because it is free and open-source)
             3. Choose a folder and finish the installer — Momentum appears in your Start menu and desktop
 
@@ -93,20 +93,20 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: app-v2.5.1
-          name: Momentum (v2.5.1) — Mac & Windows
+          tag_name: app-v2.5.2
+          name: Momentum (v2.5.2) — Mac & Windows
           body: |
             **Momentum as a real desktop application — Mac (.app/.dmg) and Windows (.exe installer).**
 
             ## Mac install
-            1. Download **Momentum-2.5.1-universal.dmg** (or the .zip)
+            1. Download **Momentum-2.5.2-universal.dmg** (or the .zip)
             2. Open the downloaded file
             3. Drag **Momentum** into your **Applications** folder
             4. Open Momentum from Applications
             5. First open (one time only): if macOS shows a warning, right-click the app → **Open** → **Open** again, or use System Settings → Privacy & Security → **Open Anyway**
 
             ## Windows install
-            1. Download **Momentum-Setup-2.5.1.exe**
+            1. Download **Momentum-Setup-2.5.2.exe**
             2. Run it (if Windows SmartScreen shows "Windows protected your PC", click **More info** → **Run anyway** — the app is unsigned because it is free and open-source)
             3. Choose a folder and finish the installer — Momentum appears in your Start menu and desktop
 

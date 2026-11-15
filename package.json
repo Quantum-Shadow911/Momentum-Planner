@@ -1,0 +1,17 @@
+{
+  "name": "momentum-planner",
+  "version": "2.5.3",
+  "description": "Momentum — an all-in-one productivity planner: tasks, calendar, projects, goals, analytics and reminders.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "jsdom": "^31.0.1",
+    "vitest": "^2.1.8"
+  }
+}

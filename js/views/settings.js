@@ -1,0 +1,569 @@
+/* Momentum — Settings: profile, theme, notifications, data management, trash */
+(function (global) {
+  'use strict';
+
+  function renderStorageMeter(el) {
+    if (!el) return;
+    let bytes = 0;
+    try { bytes = (localStorage.getItem(Storage.key()) || '').length * 2; } catch (e) { bytes = 0; }
+    let backupBytes = 0; let backupCount = 0;
+    try {
+      const backups = Storage.listBackups();
+      backupCount = backups.length;
+      backupBytes = backups.reduce((n, b) => n + ((b.data || '').length * 2), 0);
+    } catch (e) { backupBytes = 0; }
+    const total = bytes + backupBytes;
+    const state = Store.get();
+    const atts = state.tasks.reduce((n, t) => n + ((t.attachments || []).length), 0);
+    const quota = 5 * 1024 * 1024;
+    const pct = Math.min(100, Math.round((total / quota) * 100));
+    const kb = Math.max(1, Math.round(bytes / 1024));
+    const kbBackups = Math.max(1, Math.round(backupBytes / 1024));
+    const warn = total > 4 * 1024 * 1024;
+    const probe = Storage.probe();
+    const ls = Storage.lastSave();
+    let status;
+    if (!probe.ok) {
+      status = '<strong style="color:var(--red)">Saving is blocked by your browser — see the warning at the top of the page.</strong>';
+    } else if (ls.at) {
+      const when = new Date(ls.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      status = ls.ok ? `Saving works. Last saved ${when}.` : '<strong style="color:var(--red)">Last save failed — storage may be full.</strong>';
+    } else {
+      status = 'Saving works.';
+    }
+    el.innerHTML = `
+      <div class="meter-row">
+        <span class="bar"><span class="bar-fill ${warn ? 'bar-red' : 'bar-green'}" style="width:${pct}%"></span></span>
+        <span class="muted small">${Math.max(1, Math.round(total / 1024))} KB of ~5 MB browser storage used (${pct}%)</span>
+      </div>
+      <div class="muted small">Planner data ${kb} KB \u00b7 automatic backups ${kbBackups} KB (${backupCount} snapshot${backupCount === 1 ? '' : 's'})</div>
+      <div class="muted small">${status}</div>
+      <div class="muted small">${atts} attachment${atts === 1 ? '' : 's'} stored${warn ? ' — <strong style="color:var(--red)">storage is nearly full; export a backup and remove large attachments.</strong>' : ''}</div>`;
+  }
+
+  function openAccountDetails() {
+    const prof = Auth.sessionProfile();
+    if (!prof) return;
+    UI.openModal({
+      title: 'Account details',
+      body: `
+        <div class="field"><label>Your name</label><input class="input" id="adName" maxlength="40" value="${H(prof.name)}" placeholder="e.g. Alex"></div>
+        <div class="field"><label>Username</label><input class="input" id="adUser" maxlength="20" value="${H(prof.username || '')}" placeholder="e.g. alex"></div>
+        <div class="field"><label>Email</label><input class="input" id="adEmail" maxlength="120" value="${H(prof.email || '')}" placeholder="you@example.com"></div>
+        <div class="form-error" id="adErr"></div>`,
+      buttons: [
+        { label: 'Cancel', class: 'btn-ghost', onClick: () => UI.closeModal() },
+        {
+          label: 'Save details', class: 'btn-primary',
+          onClick: () => {
+            const err = document.getElementById('adErr');
+            const name = document.getElementById('adName').value.trim();
+            if (!name) { err.textContent = 'Please enter your name.'; return false; }
+            const res = Auth.completeProfile(prof.id, document.getElementById('adUser').value, document.getElementById('adEmail').value);
+            if (res.error) { err.textContent = res.error; return false; }
+            const list = Auth.profiles();
+            const me = list.find(p => p.id === prof.id);
+            if (me) { me.name = name.slice(0, 40); }
+            try { localStorage.setItem(Auth.PROFILES_KEY, JSON.stringify(list)); } catch (e) { /* ignore */ }
+            UI.toast('success', 'Account updated', 'Details saved.');
+            UI.closeModal();
+            App.startApp(prof.id);
+          }
+        }
+      ]
+    });
+  }
+
+  function openChangePassword() {
+    const prof = Auth.sessionProfile();
+    if (!prof) return;
+    const hasPw = !!prof.passHash;
+    UI.openModal({
+      title: hasPw ? 'Change password' : 'Add a password',
+      body: `
+        ${hasPw ? '<div class="field"><label>Current password</label><input class="input" type="password" id="cpCur" autofocus></div>' : ''}
+        <div class="field"><label>New password (leave empty for none)</label><input class="input" type="password" id="cpNew" ${hasPw ? '' : 'autofocus'}></div>
+        <div class="field"><label>Repeat new password</label><input class="input" type="password" id="cpNew2"></div>
+        <div class="form-error" id="cpErr"></div>`,
+      buttons: [
+        { label: 'Cancel', class: 'btn-ghost', onClick: () => UI.closeModal() },
+        {
+          label: 'Save password', class: 'btn-primary',
+          onClick: () => {
+            const err = document.getElementById('cpErr');
+            const nw = document.getElementById('cpNew').value;
+            if (nw !== document.getElementById('cpNew2').value) { err.textContent = 'The two new passwords don\u2019t match.'; return false; }
+            const res = Auth.setPassword(prof.id, hasPw ? document.getElementById('cpCur').value : '', nw);
+            if (res.error) { err.textContent = res.error; return false; }
+            UI.toast('success', 'Password saved', nw ? 'You\u2019ll need it next time you unlock.' : 'Password removed.');
+            UI.closeModal();
+            if (Views.settings.render) Views.settings.render(document.getElementById('viewHost'));
+          }
+        }
+      ]
+    });
+  }
+
+  const RECOVERY_PRESETS = [
+    "What is your pet's name?",
+    "What is your favorite food?",
+    "What city were you born in?",
+    "What was your first school?",
+    "What is your best friend's name?"
+  ];
+
+  function openRecoverySetup() {
+    const prof = Auth.sessionProfile();
+    if (!prof) return;
+    const cur = prof.recoveryQ || '';
+    const isCustom = !!cur && !RECOVERY_PRESETS.includes(cur);
+    UI.openModal({
+      title: 'Password recovery question',
+      body: `
+        <p class="muted small" style="margin-top:0">If you ever forget your password, answering this question correctly on the sign-in screen lets you set a new one.</p>
+        <div class="field"><label>Question</label>
+          <select class="select" id="rqSel">
+            ${RECOVERY_PRESETS.map(q => `<option value="${H(q)}" ${q === cur ? 'selected' : ''}>${H(q)}</option>`).join('')}
+            <option value="__custom" ${isCustom ? 'selected' : ''}>Write my own question...</option>
+          </select></div>
+        <div class="field" id="rqCustomWrap" style="display:${isCustom ? 'block' : 'none'}"><label>Your question</label><input class="input" id="rqCustom" maxlength="120" value="${isCustom ? H(cur) : ''}" placeholder="e.g. What is my locker number?"></div>
+        <div class="field"><label>Answer</label><input class="input" id="rqAns" maxlength="80" placeholder="${cur ? 'Type a new answer' : 'e.g. Rex'}"></div>
+        <div class="form-error" id="rqErr"></div>`,
+      buttons: [
+        { label: 'Cancel', class: 'btn-ghost', onClick: () => UI.closeModal() },
+        {
+          label: 'Save question', class: 'btn-primary',
+          onClick: () => {
+            const sel = document.getElementById('rqSel');
+            const q = sel.value === '__custom' ? document.getElementById('rqCustom').value : sel.value;
+            const res = Auth.setRecovery(prof.id, q, document.getElementById('rqAns').value);
+            if (res.error) { document.getElementById('rqErr').textContent = res.error; return false; }
+            UI.toast('success', 'Recovery question saved', 'You can now use Forgot password on the sign-in screen.');
+            UI.closeModal();
+            if (Views.settings.render) Views.settings.render(document.getElementById('viewHost'));
+          }
+        }
+      ]
+    });
+    document.getElementById('rqSel').addEventListener('change', e => {
+      document.getElementById('rqCustomWrap').style.display = e.target.value === '__custom' ? 'block' : 'none';
+    });
+  }
+
+  function render(host) {
+    const state = Store.get();
+    const s = state.settings;
+    const prof = Auth.sessionProfile();
+    const notifState = global.Reminders.notificationState();
+    const cfg = s.ai || { enabled: false, baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-small-latest', apiKey: '' };
+
+    host.innerHTML = `
+      <div class="page-head">
+        <div><h2>Settings & Data</h2><div class="sub">Personalize Momentum and manage your saved data.</div></div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-title"><span>👤 Profile & appearance</span></div>
+          <div class="field"><label>Your name (used in the dashboard greeting)</label>
+            <input class="input" id="setName" maxlength="60" value="${H(s.userName)}" placeholder="e.g. Alex"></div>
+          <div class="settings-row">
+            <div><div class="s-label">Account</div><div class="s-desc">${prof ? H(prof.icon + ' ' + prof.name) + (prof.username ? ' · @' + H(prof.username) : '') + (prof.email ? ' · ' + H(prof.email) : '') + (prof.passHash ? ' · password protected' : ' · no password') : 'No account'}</div></div>
+            <div class="row">
+              <button class="btn" id="editAccount">👤 Account details</button>
+              <button class="btn" id="changePw">🔑 ${prof && prof.passHash ? 'Change password' : 'Add password'}</button>
+            </div>
+          </div>
+          <div class="settings-row"><div><div class="s-label">Password recovery</div><div class="s-desc">${prof && prof.recoveryQ ? H(prof.recoveryQ) : 'Not set — without a question, a forgotten password can only be reset by confirming this account’s email on the sign-in screen.'}</div></div>
+            <div class="row"><button class="btn btn-sm" id="recQ">${prof && prof.recoveryQ ? 'Change question' : 'Set up'}</button></div></div>
+          <div class="settings-row">
+            <div><div class="s-label">Version</div><div class="s-desc">Momentum v${H(App.version)} — school-first edition with classes, study sessions, workload balancing, exams, templates, timer, attachments and breaks.</div></div>
+            <span class="badge badge-done">Up to date</span>
+          </div>
+          <div class="settings-row">
+            <div><div class="s-label">Theme</div><div class="s-desc">Auto follows the time of day — light in the daytime, dark at night (7 PM – 7 AM). Your choice is remembered.</div></div>
+            <select class="select" id="setThemeMode" style="width:auto">
+              <option value="auto" ${s.theme === 'auto' ? 'selected' : ''}>🌗 Auto (day / night)</option>
+              <option value="light" ${s.theme === 'light' ? 'selected' : ''}>☀️ Light (always)</option>
+              <option value="dark" ${s.theme === 'dark' ? 'selected' : ''}>🌙 Dark (always)</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div><div class="s-label">Week starts on</div><div class="s-desc">Affects weekly planner and analytics.</div></div>
+            <select class="select" id="setWeekStart" style="width:auto">
+              <option value="1" ${s.weekStartsOn === 1 ? 'selected' : ''}>Monday</option>
+              <option value="0" ${s.weekStartsOn === 0 ? 'selected' : ''}>Sunday</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div><div class="s-label">Daily workload warning</div><div class="s-desc">Planners show a ⚖ warning when planned work (task estimates + study sessions) exceeds this many minutes per day.</div></div>
+            <select class="select" id="setLoadLimit" style="width:auto">
+              ${[120, 180, 240, 300, 480].map(m => `<option value="${m}" ${(s.dailyLoadLimit || 180) === m ? 'selected' : ''}>${UI.reminderLabel(m).replace(' before', '')}</option>`).join('')}
+            </select>
+          </div>
+          <div class="settings-row">
+            <div><div class="s-label">Default reminder</div><div class="s-desc">Applied to new tasks. Individual reminders are set per task.</div></div>
+            <select class="select" id="setReminder" style="width:auto">
+              ${[0, 5, 15, 30, 60, 120, 1440].map(m => `<option value="${m}" ${s.reminderDefault === m ? 'selected' : ''}>${UI.reminderLabel(m)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>🔔 Notifications</span></div>
+          <div class="settings-row">
+            <div><div class="s-label">In-app reminders</div>
+              <div class="s-desc">Always on. Reminders appear as toasts while the app is open — for due tasks, deadlines and overdue work.</div></div>
+            <span class="badge badge-done">Active</span>
+          </div>
+          <div class="settings-row">
+            <div><div class="s-label">Device notifications</div>
+              <div class="s-desc" id="notifDesc">${notifDescText(notifState)}</div></div>
+              <div id="notifAction"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>✨ AI assistant (optional)</span></div>
+          <p class="muted small" style="margin-top:0">Momentum's smart tools — ✨ Break into steps, 🧪 Study kits, ✨ Describe a task, and weekly insights — work for everyone with the <strong>built-in smart engine</strong>: no account, key or internet needed. Optionally connect your own AI model to make them smarter.</p>
+          <div class="settings-row">
+            <div><div class="s-label">Use a remote AI model</div><div class="s-desc">Off = built-in engine only (private, offline). On = the tools also ask your AI model, and fall back to the built-in engine if it can't be reached.</div></div>
+            <label class="check-row"><input type="checkbox" id="aiEnabled" ${cfg.enabled ? 'checked' : ''}> Enabled</label>
+          </div>
+          <div class="field-row-3">
+            <div class="field"><label>API base URL</label><input class="input" id="aiBaseUrl" placeholder="https://api.mistral.ai/v1" value="${H(cfg.baseUrl)}"></div>
+            <div class="field"><label>Model</label><input class="input" id="aiModel" placeholder="mistral-small-latest" value="${H(cfg.model)}"></div>
+            <div class="field"><label>API key <span class="muted">(kept in this browser only)</span></label><input class="input" type="password" id="aiApiKey" placeholder="paste your key" value="${H(cfg.apiKey)}"></div>
+          </div>
+          <div class="row" style="margin-bottom:10px">
+            <button class="btn btn-sm" id="aiTest">Test connection</button>
+            <span class="muted small" id="aiStatus"></span>
+          </div>
+          <div class="settings-row" style="margin-bottom:0"><div><div class="s-label">Privacy</div><div class="s-desc">When a remote model is on, only a task's title, description and type are sent to the model you choose — never your name, school, teachers, full planner or account data. Your API key is stored only in this browser and is never included in exports. All AI suggestions are previews: nothing is saved until you confirm.</div></div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>📲 Install as an app</span></div>
+          <p class="muted small" style="margin-top:0">Momentum can live in your Dock (Mac) or Home Screen (iPhone/iPad) with its own icon and full-screen window — no App Store needed.</p>
+<div class="settings-row"><div><div class="s-label">Real Mac app (full desktop version)</div><div class="s-desc">Download the actual Momentum.app — a real desktop application that loads the live planner, so it always has the newest features: <a href="https://github.com/Quantum-Shadow911/Planner/releases/latest" target="_blank" rel="noopener"><strong>⬇️ Download Momentum for Mac (.dmg)</strong></a> — on the releases page, pick the file ending in <strong>universal.dmg</strong>. First launch: if your Mac says it can't verify the app, click <strong>Done</strong> (don't click Move to Trash), then open <strong>System Settings → Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>.</div></div></div>
+          <div class="settings-row"><div><div class="s-label">Real Windows app (full desktop version)</div><div class="s-desc">Same idea on Windows: <a href="https://github.com/Quantum-Shadow911/Planner/releases/latest" target="_blank" rel="noopener"><strong>⬇️ Download Momentum for Windows (.exe)</strong></a> — on the releases page, download <strong>Momentum-Setup-&lt;version&gt;.exe</strong> and run it. If Windows SmartScreen says "Windows protected your PC", click <strong>More info</strong> → <strong>Run anyway</strong> (the app is unsigned because it's free and open-source). Momentum then appears in your Start menu and desktop.</div></div></div>
+          <div class="settings-row"><div><div class="s-label">Mac — Safari</div><div class="s-desc">Open the planner → <strong>Share</strong> button (or File menu) → <strong>Add to Dock…</strong></div></div></div>
+          <div class="settings-row"><div><div class="s-label">Mac — Chrome / Edge</div><div class="s-desc">Click the install icon (computer with ↓) at the right end of the address bar → <strong>Install</strong></div></div></div>
+          <div class="settings-row"><div><div class="s-label">iPhone / iPad</div><div class="s-desc">In Safari: <strong>Share</strong> → scroll down → <strong>Add to Home Screen</strong></div></div></div>
+          <div class="settings-row" style="margin-bottom:0"><div><div class="s-label">Good to know</div><div class="s-desc">Each device keeps its own data in that browser — there's no cross-device sync. The app works offline once installed; sign in with the same account name to keep it familiar.</div></div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>💾 Data — backup & restore</span></div>
+          <p class="muted small" style="margin-top:0">Everything is stored locally in your browser (localStorage) and saved automatically after every change. Rolling snapshots of your last ${5} saves are kept for recovery.</p>
+          <div class="row-wrap">
+            <button class="btn" id="exportBtn">⬇️ Export backup (JSON)</button>
+            <button class="btn" id="importBtn">⬆️ Import backup</button>
+            <input type="file" id="importFile" accept=".json,application/json" class="hidden">
+          </div>
+          <div class="detail-section">
+            <h4>Storage usage</h4>
+            <div id="storageMeter"></div>
+          </div>
+          <div class="detail-section">
+            <h4>Automatic snapshots</h4>
+            <div id="backupList"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>🗑️ Trash — protection against accidental deletion</span></div>
+          <div id="trashList"></div>
+        </div>
+
+        <div class="card" style="grid-column:1/-1">
+          <div class="card-title"><span>🏷️ Categories</span>
+            <button class="btn btn-sm btn-primary" id="newCat">＋ New category</button></div>
+          <div class="row-wrap" id="catList"></div>
+        </div>
+
+        <div class="card" style="grid-column:1/-1">
+          <div class="card-title"><span>🏖 School breaks & holidays</span></div>
+          <p class="muted small" style="margin-top:0">Break days are skipped by workload balancing and smart rescheduling, and shaded in the calendar.</p>
+          <div id="breakList"></div>
+          <div class="field-row-3" style="margin-top:10px">
+            <div class="field"><label>Break name</label><input class="input" id="brkName" maxlength="80" placeholder="e.g. Winter break"></div>
+            <div class="field"><label>First day</label><input class="input" type="date" id="brkStart"></div>
+            <div class="field"><label>Last day</label><input class="input" type="date" id="brkEnd"></div>
+          </div>
+          <button class="btn btn-sm btn-primary" id="brkAdd">＋ Add break</button>
+        </div>
+
+        <div class="card danger-corner">
+          <div class="card-title"><span style="color:var(--red)">⚠ Danger zone</span></div>
+          <div class="row-wrap">
+            <button class="btn btn-sm btn-danger" id="loadSample">Load sample data</button>
+            <button class="btn btn-sm btn-danger" id="resetAll">Delete ALL data…</button>
+            <button class="btn btn-sm btn-danger" id="deleteAccount">Delete account…</button>
+          </div>
+        </div>
+        <div style="height:130px"></div>
+      </div>
+    `;
+
+    /* profile & appearance */
+    host.querySelector('#setName').addEventListener('change', e => Store.updateSettings({ userName: e.target.value.trim() }));
+    host.querySelector('#setThemeMode').addEventListener('change', e => App.setTheme(e.target.value));
+    host.querySelector('#setWeekStart').addEventListener('change', e => Store.updateSettings({ weekStartsOn: Number(e.target.value) }));
+    host.querySelector('#setReminder').addEventListener('change', e => Store.updateSettings({ reminderDefault: Number(e.target.value) }));
+    host.querySelector('#setLoadLimit').addEventListener('change', e => Store.updateSettings({ dailyLoadLimit: Number(e.target.value) }));
+
+    /* AI assistant */
+    const aiSave = () => Store.updateSettings({
+      ai: {
+        enabled: host.querySelector('#aiEnabled').checked,
+        baseUrl: host.querySelector('#aiBaseUrl').value.trim(),
+        model: host.querySelector('#aiModel').value.trim(),
+        apiKey: host.querySelector('#aiApiKey').value.trim()
+      }
+    });
+    ['aiEnabled', 'aiBaseUrl', 'aiModel', 'aiApiKey'].forEach(id => host.querySelector('#' + id).addEventListener('change', aiSave));
+    host.querySelector('#aiTest').addEventListener('click', () => {
+      aiSave();
+      const st = host.querySelector('#aiStatus');
+      st.textContent = '⏳ Testing…';
+      AI.testConnection().then(() => { st.textContent = '✅ Connected — ' + (Store.get().settings.ai.model || 'model'); })
+        .catch(err => { st.textContent = '⚠ ' + (err && err.message || 'Connection failed'); });
+    });
+
+    /* notifications */
+    const notifAction = host.querySelector('#notifAction');
+    if (notifState === 'granted') {
+      notifAction.innerHTML = '<span class="badge badge-done">Permission granted</span>';
+    } else if (notifState === 'denied') {
+      notifAction.innerHTML = '<span class="badge badge-overdue">Blocked by browser</span>';
+    } else if (notifState === 'unsupported') {
+      notifAction.innerHTML = '<span class="badge">Not supported here</span>';
+    } else {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-sm';
+      btn.textContent = 'Enable…';
+      btn.addEventListener('click', async () => {
+        const res = await Reminders.requestPermission();
+        render(host);
+        if (res === 'granted') {
+          Store.updateSettings({ browserNotifications: true });
+          UI.toast('success', 'Device notifications enabled', 'Reminders will now also appear outside the app while it is open.');
+        } else {
+          UI.toast('warning', 'Permission not granted', 'In-app reminders still work. Device notifications were not enabled.');
+        }
+      });
+      notifAction.appendChild(btn);
+    }
+
+    /* export / import */
+    host.querySelector('#exportBtn').addEventListener('click', () => {
+      const blob = new Blob([Storage.exportJson(Store.get())], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `momentum-backup-${Utils.todayStr()}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      UI.toast('success', 'Backup exported', 'Keep the JSON file somewhere safe.');
+    });
+    const fileInput = host.querySelector('#importFile');
+    host.querySelector('#importBtn').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const res = Storage.importJson(reader.result);
+        if (res.error) { UI.toast('danger', 'Import failed', res.error); return; }
+        UI.openModal({
+          title: 'Import backup?',
+          body: `<p style="margin:0;color:var(--text-2)">This will <strong>replace all current data</strong> with the backup's contents (${res.data.tasks.length} tasks, ${res.data.projects.length} projects, ${res.data.notes.length} notes). Your current data is kept in automatic snapshots.</p>`,
+          buttons: [
+            { label: 'Cancel', class: 'btn-ghost', onClick: () => UI.closeModal() },
+            {
+              label: 'Replace data', class: 'btn-primary',
+              onClick: () => {
+                const saved = Store.replaceState(res.data);
+                if (!saved) {
+                  UI.toast('danger', 'Import failed', 'Could not save \u2014 storage is full or unavailable. Your current data was not changed.');
+                  return false;
+                }
+                UI.toast('success', 'Backup imported', 'All data has been restored.');
+                UI.closeModal();
+              }
+            }
+          ]
+        });
+      };
+      reader.readAsText(file);
+      fileInput.value = '';
+    });
+
+    /* snapshots */
+    const backupList = host.querySelector('#backupList');
+    renderStorageMeter(host.querySelector('#storageMeter'));
+    host.querySelector('#changePw').addEventListener('click', openChangePassword);
+    host.querySelector('#recQ').addEventListener('click', openRecoverySetup);
+    host.querySelector('#editAccount').addEventListener('click', openAccountDetails);
+    const backups = Storage.listBackups();
+    if (!backups.length) {
+      backupList.innerHTML = `<div class="muted small">No snapshots yet — they are created automatically as you use the app.</div>`;
+    } else {
+      backups.forEach(b => {
+        const row = document.createElement('div');
+        row.className = 'settings-row';
+        let count = '?';
+        try { count = String(JSON.parse(b.data).tasks.length); } catch (e) { /* corrupt snapshot */ }
+        row.innerHTML = `
+          <div><div class="s-label">${H(new Date(b.ts).toLocaleString())}</div><div class="s-desc">${count} tasks</div></div>
+          <button class="btn btn-sm">Restore</button>`;
+        row.querySelector('button').addEventListener('click', async () => {
+          const ok = await UI.confirmDialog({
+            title: 'Restore snapshot?',
+            message: 'Current data will be replaced by this snapshot. It was captured automatically.',
+            confirmLabel: 'Restore'
+          });
+          if (!ok) return;
+          const restored = Storage.restoreBackup(b.ts);
+          if (restored) {
+            Store.replaceState(restored);
+            UI.toast('success', 'Snapshot restored', 'Your data was rolled back.');
+          } else {
+            UI.toast('danger', 'Restore failed', 'The snapshot could not be saved \u2014 storage may be full. Export a backup, free up space, then try again.');
+          }
+        });
+        backupList.appendChild(row);
+      });
+    }
+
+    /* trash */
+    const trashList = host.querySelector('#trashList');
+    if (!state.trash.length) {
+      trashList.innerHTML = `<div class="muted small">Trash is empty. Deleted tasks, projects, goals, notes and categories land here first.</div>`;
+    } else {
+      state.trash.forEach(entry => {
+        const row = document.createElement('div');
+        row.className = 'settings-row';
+        row.innerHTML = `
+          <div><div class="s-label">${H(entry.label)}</div>
+          <div class="s-desc">${H(entry.type)} · deleted ${H(new Date(entry.deletedAt).toLocaleDateString())}</div></div>
+          <button class="btn btn-sm">Restore</button>`;
+        row.querySelector('button').addEventListener('click', () => {
+          Store.restoreTrash(entry.id);
+          UI.toast('success', 'Restored', `“${entry.label}” is back.`);
+        });
+        trashList.appendChild(row);
+      });
+      const emptyBtn = document.createElement('button');
+      emptyBtn.className = 'btn btn-sm btn-danger';
+      emptyBtn.style.marginTop = '10px';
+      emptyBtn.textContent = 'Empty trash';
+      emptyBtn.addEventListener('click', async () => {
+        const ok = await UI.confirmDialog({ title: 'Empty trash?', message: 'Everything in the trash will be permanently deleted.', confirmLabel: 'Empty trash', danger: true });
+        if (ok) Store.emptyTrash();
+      });
+      trashList.appendChild(emptyBtn);
+    }
+
+    /* categories */
+    const catList = host.querySelector('#catList');
+    state.categories.forEach(c => {
+      const chip = document.createElement('span');
+      chip.className = 'badge badge-cat';
+      chip.style.padding = '6px 12px';
+      chip.innerHTML = `<span class="dot" style="background:${H(c.color)}"></span>${H(c.icon)} ${H(c.name)}
+        <button class="icon-btn" style="width:22px;height:22px;font-size:11px" title="Edit">✏️</button>
+        <button class="icon-btn" style="width:22px;height:22px;font-size:11px" title="Delete">🗑️</button>`;
+      const [editBtn, delBtn] = chip.querySelectorAll('.icon-btn');
+      editBtn.addEventListener('click', () => UI.openCategoryEditor(c.id));
+      delBtn.addEventListener('click', async () => {
+        const ok = await UI.confirmDialog({
+          title: 'Delete category?',
+          message: `“${c.name}” will be moved to trash. Tasks in it are kept but become uncategorized.`,
+          confirmLabel: 'Delete', danger: true
+        });
+        if (ok) { Store.deleteCategory(c.id); UI.toast('info', 'Category deleted', c.name); }
+      });
+      catList.appendChild(chip);
+    });
+    host.querySelector('#newCat').addEventListener('click', () => UI.openCategoryEditor());
+
+    /* school breaks */
+    const breakList = host.querySelector('#breakList');
+    if (!(state.breaks || []).length) {
+      breakList.innerHTML = `<div class="muted small">No breaks defined yet.</div>`;
+    } else {
+      state.breaks.forEach(b => {
+        const row = document.createElement('div');
+        row.className = 'settings-row';
+        const days = Utils.diffDays(b.end, b.start) + 1;
+        row.innerHTML = `
+          <div><div class="s-label">🏖 ${H(b.name)}</div>
+          <div class="s-desc">${H(Utils.fmtDate(b.start))} – ${H(Utils.fmtDate(b.end))} · ${days} day${days === 1 ? '' : 's'}</div></div>
+          <button class="btn btn-sm">Remove</button>`;
+        row.querySelector('button').addEventListener('click', () => {
+          Store.deleteBreak(b.id);
+          UI.toast('info', 'Break removed', b.name);
+        });
+        breakList.appendChild(row);
+      });
+    }
+    host.querySelector('#brkAdd').addEventListener('click', () => {
+      const name = host.querySelector('#brkName').value.trim();
+      const start = host.querySelector('#brkStart').value;
+      const end = host.querySelector('#brkEnd').value;
+      if (!name || !start || !end) { UI.toast('warning', 'Missing details', 'Give the break a name and both dates.'); return; }
+      if (end < start) { UI.toast('warning', 'Invalid range', 'The last day cannot be before the first day.'); return; }
+      Store.saveBreak({ name, start, end });
+      UI.toast('success', 'Break added', name);
+    });
+
+    /* danger zone */
+    host.querySelector('#loadSample').addEventListener('click', async () => {
+      const ok = await UI.confirmDialog({
+        title: 'Load sample data?',
+        message: 'Adds example tasks, projects, goals and notes so you can explore the app. Your existing data is kept.',
+        confirmLabel: 'Load samples'
+      });
+      if (ok) { App.loadSampleData(); Store.updateSettings({ sampleKept: true }); UI.toast('success', 'Sample data loaded', 'Explore the dashboard, planner views and analytics.'); }
+    });
+    host.querySelector('#deleteAccount').addEventListener('click', async () => {
+      const prof = Auth.sessionProfile();
+      if (!prof) return;
+      const ok = await UI.confirmDialog({
+        title: 'Delete this account?',
+        message: `This permanently deletes the account "${prof.name}" and ALL of its data — tasks, classes, events, everything. This cannot be undone. Export a backup first!`,
+        requireText: prof.name,
+        confirmLabel: 'Delete account forever', danger: true
+      });
+      if (!ok) return;
+      const res = Auth.deleteProfile(prof.id, prof.name);
+      if (res.error) { UI.toast('danger', 'Could not delete', res.error); return; }
+      Auth.logout();
+      App.boot();
+    });
+    host.querySelector('#resetAll').addEventListener('click', async () => {
+      const ok = await UI.confirmDialog({
+        title: 'Delete ALL data?',
+        message: 'Every task, project, goal, note and category will be permanently deleted. This cannot be undone — export a backup first!',
+        confirmLabel: 'Delete everything', danger: true
+      });
+      if (ok) {
+        const fresh = Storage.emptyState();
+        fresh.settings = { ...Store.get().settings, seeded: true };
+        Store.replaceState(fresh);
+        UI.toast('info', 'All data deleted', 'You are starting fresh.');
+      }
+    });
+  }
+
+  function notifDescText(notifState) {
+    if (notifState === 'granted') return 'Granted — reminders also appear as device notifications while the app is open.';
+    if (notifState === 'denied') return 'Permission was denied in the browser. In-app reminders still work; to change this, adjust site permissions in your browser settings.';
+    if (notifState === 'unsupported') return 'This browser does not support the Notification API. In-app reminders still work.';
+    return 'Optional. Ask the browser for permission — if granted, reminders also appear as real device notifications while the app is open. In-app reminders work regardless.';
+  }
+
+  global.Views = global.Views || {};
+  global.Views.settings = { title: 'Settings & Data', render };
+})(typeof window !== 'undefined' ? window : globalThis);

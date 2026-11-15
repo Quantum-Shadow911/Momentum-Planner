@@ -1,0 +1,523 @@
+/* Momentum — storage: persistence, validation, backups, export/import, trash */
+(function (global) {
+  'use strict';
+
+  const BASE_KEY = 'momentum.data.v1';
+  const BASE_BACKUP_KEY = 'momentum.backups.v1';
+  let KEY = BASE_KEY;
+  let PROFILE_ID = null;
+  let BACKUP_KEY = BASE_BACKUP_KEY;
+
+  function setProfile(profileId) {
+    KEY = profileId ? BASE_KEY + '.' + profileId : BASE_KEY;
+    PROFILE_ID = profileId || null;
+    BACKUP_KEY = profileId ? BASE_BACKUP_KEY + '.' + profileId : BASE_BACKUP_KEY;
+  }
+
+  function key() { return KEY; }
+  function profileId() { return PROFILE_ID; }
+  const MAX_BACKUPS = 5;
+  const MAX_TRASH = 100;
+
+  const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
+  const STATUSES = ['not-started', 'in-progress', 'waiting', 'completed'];
+  const RECURRENCE_TYPES = ['none', 'daily', 'weekdays', 'weekly', 'biweekly', 'monthly'];
+
+  const ASSIGNMENT_TYPES = ['general', 'homework', 'essay', 'project', 'lab', 'reading', 'revision', 'test-prep', 'quiz', 'test'];
+  const SUBMISSION_STATES = ['not-started', 'working', 'ready', 'submitted'];
+  const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024;
+
+  function emptyState() {
+    return {
+      version: 1,
+      tasks: [],
+      categories: [],
+      classes: [],
+      events: [],
+      projects: [],
+      goals: [],
+      notes: [],
+      trash: [],
+      breaks: [],
+      activity: [],
+      settings: {
+        theme: 'auto',
+        userName: '',
+        weekStartsOn: 1,
+        browserNotifications: false,
+        reminderDefault: 30,
+        hideCompleted: false,
+        dailyLoadLimit: 180,
+        seeded: false,
+        ai: { enabled: false, baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-small-latest', apiKey: '' }
+      }
+    };
+  }
+
+  function str(v, fallback) { return typeof v === 'string' ? v : (fallback != null ? fallback : ''); }
+  function num(v, fallback) { const n = Number(v); return isFinite(n) ? n : (fallback != null ? fallback : 0); }
+  function bool(v, fallback) { return typeof v === 'boolean' ? v : (fallback != null ? fallback : false); }
+  function arr(v) { return Array.isArray(v) ? v : []; }
+  function dateOrNull(v) {
+    if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+    return Utils.parseDate(v) ? v : null;
+  }
+  function timeOrNull(v) { return typeof v === 'string' && /^([01]?\d|2[0-3]):[0-5]\d$/.test(v) ? v : null; }
+
+  function normalizeStudyKit(k) {
+    if (!k || typeof k !== 'object') return null;
+    const obj = {
+      flashcards: arr(k.flashcards).slice(0, 20).map(c => ({ front: str(c && c.front).slice(0, 200), back: str(c && c.back).slice(0, 500) })).filter(c => c.front && c.back),
+      quiz: arr(k.quiz).slice(0, 10).map(q => {
+        const choices = arr(q && q.choices).filter(x => typeof x === 'string').map(x => x.slice(0, 200)).slice(0, 6);
+        const answer = Utils.clamp(num(q && q.answer, 0), 0, 5);
+        return { q: str(q && q.q).slice(0, 300), choices, answer };
+      }).filter(q => q.q && q.choices.length >= 2 && q.answer < q.choices.length),
+      summary: str(k.summary).slice(0, 2000),
+      concepts: arr(k.concepts).filter(x => typeof x === 'string').map(x => x.slice(0, 80)).slice(0, 10),
+      createdAt: str(k.createdAt) || null,
+      source: str(k.source) === 'ai' ? 'ai' : 'built-in'
+    };
+    return (obj.flashcards.length || obj.quiz.length || obj.summary || obj.concepts.length) ? obj : null;
+  }
+
+  function normalizeTask(t) {
+    if (!t || typeof t !== 'object') return null;
+    const title = str(t.title).trim();
+    if (!title) return null;
+    const now = new Date().toISOString();
+    const sessions = arr(t.sessions).map(normalizeSession).filter(Boolean).slice(0, 40);
+    const doneSessionMin = sessions.filter(s => s.done).reduce((sum, s) => sum + s.durationMin, 0);
+    const manualMin = isFinite(Number(t.manualMin))
+      ? Math.max(0, Math.round(Number(t.manualMin)))
+      : Math.max(0, num(t.actualMin, 0) - doneSessionMin);
+    return {
+      id: str(t.id) || Utils.uid('task'),
+      title: title.slice(0, 300),
+      description: str(t.description).slice(0, 5000),
+      startDate: dateOrNull(t.startDate),
+      dueDate: dateOrNull(t.dueDate),
+      time: timeOrNull(t.time),
+      durationMin: num(t.durationMin, 0),
+      priority: PRIORITIES.includes(t.priority) ? t.priority : 'medium',
+      categoryId: str(t.categoryId) || null,
+      tags: arr(t.tags).filter(x => typeof x === 'string').map(x => x.trim().slice(0, 30)).filter(Boolean).slice(0, 12),
+      estimateMin: num(t.estimateMin, 0),
+      manualMin,
+      actualMin: manualMin + doneSessionMin,
+      subtasks: arr(t.subtasks).map(s => ({
+        id: str(s.id) || Utils.uid('sub'),
+        title: str(s.title).trim().slice(0, 300) || 'Untitled step',
+        done: bool(s.done)
+      })).slice(0, 50),
+      recurrence: normalizeRecurrence(t.recurrence),
+      classId: str(t.classId) || null,
+      assignmentType: ASSIGNMENT_TYPES.includes(t.assignmentType) ? t.assignmentType : 'general',
+      submission: SUBMISSION_STATES.includes(t.submission) ? t.submission : (t.status === 'completed' ? 'submitted' : 'not-started'),
+      sessions,
+      attachments: arr(t.attachments).map(normalizeAttachment).filter(Boolean).slice(0, 8),
+      reminders: arr(t.reminders).map(n => num(n, null)).filter(n => n != null && n >= 0 && n <= 10080).slice(0, 5),
+      links: arr(t.links).map(l => ({ label: str(l.label).slice(0, 120), url: str(l.url).slice(0, 1000) })).filter(l => l.url).slice(0, 10),
+      notes: str(t.notes).slice(0, 5000),
+      status: STATUSES.includes(t.status) ? t.status : 'not-started',
+      dependsOn: Array.from(new Set(arr(t.dependsOn).filter(x => typeof x === 'string'))).slice(0, 20),
+      projectId: str(t.projectId) || null,
+      studyKit: normalizeStudyKit(t.studyKit),
+      completedAt: t.completedAt ? str(t.completedAt) : null,
+      createdAt: t.createdAt ? str(t.createdAt) : now,
+      updatedAt: now,
+      notified: arr(t.notified).map(String).slice(0, 20)
+    };
+  }
+
+  function normalizeRecurrence(r) {
+    if (!r || typeof r !== 'object') return { type: 'none', interval: 1 };
+    const type = RECURRENCE_TYPES.includes(r.type) ? r.type : 'none';
+    return { type, interval: Utils.clamp(num(r.interval, 1), 1, 52) };
+  }
+
+  function normalizeSession(s) {
+    if (!s || typeof s !== 'object') return null;
+    const date = dateOrNull(s.date);
+    if (!date) return null;
+    return {
+      id: str(s.id) || Utils.uid('ses'),
+      date,
+      time: timeOrNull(s.time),
+      durationMin: Utils.clamp(num(s.durationMin, 30), 5, 600),
+      objective: str(s.objective).slice(0, 300),
+      done: bool(s.done)
+    };
+  }
+
+  function normalizeAttachment(a) {
+    if (!a || typeof a !== 'object') return null;
+    const url = str(a.dataUrl);
+    if (!url.startsWith('data:')) return null;
+    if (url.length > Math.ceil(MAX_ATTACHMENT_BYTES * 4 / 3) + 128) return null;
+    return {
+      id: str(a.id) || Utils.uid('att'),
+      name: (str(a.name).trim() || 'attachment').slice(0, 200),
+      size: Utils.clamp(num(a.size, 0), 0, MAX_ATTACHMENT_BYTES),
+      dataUrl: url
+    };
+  }
+
+  function normalizeBreak(b) {
+    if (!b || typeof b !== 'object') return null;
+    const name = str(b.name).trim();
+    const start = dateOrNull(b.start);
+    const end = dateOrNull(b.end);
+    if (!name || !start || !end || end < start) return null;
+    return { id: str(b.id) || Utils.uid('brk'), name: name.slice(0, 80), start, end };
+  }
+
+  function normalizeClass(c) {
+    if (!c || typeof c !== 'object') return null;
+    const name = str(c.name).trim();
+    if (!name) return null;
+    return {
+      id: str(c.id) || Utils.uid('cls'),
+      name: name.slice(0, 80),
+      teacher: str(c.teacher).slice(0, 80),
+      room: str(c.room).slice(0, 40),
+      period: str(c.period).slice(0, 10),
+      color: /^#[0-9a-fA-F]{6}$/.test(c.color || '') ? c.color : '#3b82f6',
+      icon: str(c.icon).slice(0, 8) || '📘',
+      slots: arr(c.slots).map(s => {
+        const day = num(s.day, -1);
+        if (day < 0 || day > 6) return null;
+        return { day: Math.round(day), start: timeOrNull(s.start) || '09:00', end: timeOrNull(s.end) || '10:00' };
+      }).filter(Boolean).slice(0, 14)
+    };
+  }
+
+  function normalizeEvent(e) {
+    if (!e || typeof e !== 'object') return null;
+    const title = str(e.title).trim();
+    const date = dateOrNull(e.date);
+    if (!title || !date) return null;
+    return {
+      id: str(e.id) || Utils.uid('evt'),
+      kind: e.kind === 'key-date' ? 'key-date' : 'activity',
+      title: title.slice(0, 200),
+      date,
+      time: timeOrNull(e.time),
+      endTime: timeOrNull(e.endTime),
+      location: str(e.location).slice(0, 120),
+      icon: str(e.icon).slice(0, 8) || '⭐',
+      color: /^#[0-9a-fA-F]{6}$/.test(e.color || '') ? e.color : '#10b981',
+      categoryId: str(e.categoryId) || null,
+      recurrence: normalizeRecurrence(e.recurrence),
+      notes: str(e.notes).slice(0, 3000),
+      createdAt: e.createdAt ? str(e.createdAt) : new Date().toISOString()
+    };
+  }
+
+  function normalizeCategory(c) {
+    if (!c || typeof c !== 'object') return null;
+    const name = str(c.name).trim();
+    if (!name) return null;
+    return {
+      id: str(c.id) || Utils.uid('cat'),
+      name: name.slice(0, 60),
+      color: /^#[0-9a-fA-F]{6}$/.test(c.color || '') ? c.color : '#6366f1',
+      icon: str(c.icon).slice(0, 8) || '🏷️'
+    };
+  }
+
+  function normalizeMilestone(m) {
+    if (!m || typeof m !== 'object') return null;
+    const title = str(m.title).trim() || 'Milestone';
+    return {
+      id: str(m.id) || Utils.uid('ms'),
+      title: title.slice(0, 200),
+      done: bool(m.done),
+      dueDate: dateOrNull(m.dueDate)
+    };
+  }
+
+  function normalizeProject(p) {
+    if (!p || typeof p !== 'object') return null;
+    const name = str(p.name).trim();
+    if (!name) return null;
+    return {
+      id: str(p.id) || Utils.uid('proj'),
+      name: name.slice(0, 120),
+      description: str(p.description).slice(0, 3000),
+      startDate: dateOrNull(p.startDate),
+      dueDate: dateOrNull(p.dueDate),
+      milestones: arr(p.milestones).map(normalizeMilestone).filter(Boolean).slice(0, 50),
+      priority: PRIORITIES.includes(p.priority) ? p.priority : 'medium',
+      status: STATUSES.includes(p.status) ? p.status : 'not-started',
+      notes: str(p.notes).slice(0, 5000),
+      links: arr(p.links).map(l => ({ label: str(l.label).slice(0, 120), url: str(l.url).slice(0, 1000) })).filter(l => l.url).slice(0, 10),
+      color: /^#[0-9a-fA-F]{6}$/.test(p.color || '') ? p.color : '#6366f1',
+      icon: str(p.icon).slice(0, 8) || '📁',
+      categoryId: str(p.categoryId) || null,
+      createdAt: p.createdAt ? str(p.createdAt) : new Date().toISOString()
+    };
+  }
+
+  function normalizeGoal(g) {
+    if (!g || typeof g !== 'object') return null;
+    const name = str(g.name).trim();
+    if (!name) return null;
+    return {
+      id: str(g.id) || Utils.uid('goal'),
+      name: name.slice(0, 120),
+      description: str(g.description).slice(0, 3000),
+      targetDate: dateOrNull(g.targetDate),
+      milestones: arr(g.milestones).map(normalizeMilestone).filter(Boolean).slice(0, 50),
+      color: /^#[0-9a-fA-F]{6}$/.test(g.color || '') ? g.color : '#8b5cf6',
+      icon: str(g.icon).slice(0, 8) || '🎯',
+      notes: str(g.notes).slice(0, 5000),
+      createdAt: g.createdAt ? str(g.createdAt) : new Date().toISOString()
+    };
+  }
+
+  function normalizeNote(n) {
+    if (!n || typeof n !== 'object') return null;
+    const title = str(n.title).trim();
+    const body = str(n.body);
+    if (!title && !body.trim()) return null;
+    return {
+      id: str(n.id) || Utils.uid('note'),
+      title: (title || 'Untitled note').slice(0, 200),
+      body: body.slice(0, 20000),
+      color: /^#[0-9a-fA-F]{6}$/.test(n.color || '') ? n.color : '#f59e0b',
+      pinned: bool(n.pinned),
+      taskIds: arr(n.taskIds).filter(x => typeof x === 'string').slice(0, 20),
+      projectIds: arr(n.projectIds).filter(x => typeof x === 'string').slice(0, 20),
+      classId: str(n.classId) || null,
+      createdAt: n.createdAt ? str(n.createdAt) : new Date().toISOString(),
+      updatedAt: n.updatedAt ? str(n.updatedAt) : new Date().toISOString()
+    };
+  }
+
+  function normalizeSettings(s, prev) {
+    const out = Object.assign({}, (prev || emptyState().settings));
+    if (!s || typeof s !== 'object') return out;
+    if (s.theme === 'light' || s.theme === 'dark' || s.theme === 'auto') out.theme = s.theme;
+    if (typeof s.userName === 'string') out.userName = s.userName.slice(0, 60);
+    out.weekStartsOn = s.weekStartsOn === 0 ? 0 : 1;
+    out.browserNotifications = bool(s.browserNotifications);
+    out.reminderDefault = Utils.clamp(num(s.reminderDefault, 30), 0, 10080);
+    out.hideCompleted = bool(s.hideCompleted);
+    out.dailyLoadLimit = Utils.clamp(num(s.dailyLoadLimit, out.dailyLoadLimit || 180), 15, 720);
+    out.seeded = bool(s.seeded);
+    if (typeof s.lastVersion === 'string') out.lastVersion = s.lastVersion.slice(0, 40);
+    if (s.ai && typeof s.ai === 'object') {
+      out.ai = {
+        enabled: bool(s.ai.enabled),
+        baseUrl: typeof s.ai.baseUrl === 'string' ? s.ai.baseUrl.trim().slice(0, 300) : (out.ai && out.ai.baseUrl) || '',
+        model: typeof s.ai.model === 'string' ? s.ai.model.trim().slice(0, 120) : (out.ai && out.ai.model) || '',
+        apiKey: typeof s.ai.apiKey === 'string' ? s.ai.apiKey.slice(0, 400) : (out.ai && out.ai.apiKey) || ''
+      };
+    }
+    return out;
+  }
+
+  function normalize(data, prev) {
+    const base = emptyState();
+    if (!data || typeof data !== 'object') return prev ? Object.assign(base, { settings: prev.settings }) : base;
+    const seen = new Set();
+    const tasks = arr(data.tasks).map(normalizeTask).filter(Boolean).filter(t => {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
+    const catIds = new Set();
+    const categories = arr(data.categories).map(normalizeCategory).filter(Boolean).filter(c => {
+      if (catIds.has(c.id)) return false;
+      catIds.add(c.id);
+      return true;
+    });
+    const projIds = new Set(arr(data.projects).map(p => p && p.id).filter(Boolean));
+    const taskIds = new Set(tasks.map(t => t.id));
+    const classIds = new Set();
+    const classes = arr(data.classes).map(normalizeClass).filter(Boolean).filter(c => {
+      if (classIds.has(c.id)) return false;
+      classIds.add(c.id);
+      return true;
+    });
+    const evCatIds = new Set(arr(data.events).map(e => e && e.categoryId).filter(Boolean));
+    return {
+      version: 1,
+      tasks: tasks.map(t => Object.assign(t, {
+        categoryId: t.categoryId && catIds.has(t.categoryId) ? t.categoryId : null,
+        projectId: t.projectId && projIds.has(t.projectId) ? t.projectId : null,
+        classId: t.classId && classIds.has(t.classId) ? t.classId : null,
+        dependsOn: t.dependsOn.filter(id => taskIds.has(id) && id !== t.id)
+      })),
+      categories,
+      classes,
+      events: arr(data.events).map(normalizeEvent).filter(Boolean).map(e => Object.assign(e, {
+        categoryId: e.categoryId && catIds.has(e.categoryId) && evCatIds.has(e.categoryId) ? e.categoryId : null
+      })),
+      projects: arr(data.projects).map(p => normalizeProject(p)).filter(Boolean).map(p => Object.assign(p, {
+        categoryId: p.categoryId && catIds.has(p.categoryId) ? p.categoryId : null
+      })),
+      goals: arr(data.goals).map(normalizeGoal).filter(Boolean),
+      notes: arr(data.notes).map(normalizeNote).filter(Boolean).map(n => Object.assign(n, {
+        taskIds: n.taskIds.filter(id => taskIds.has(id)),
+        projectIds: n.projectIds.filter(id => projIds.has(id)),
+        classId: n.classId && classIds.has(n.classId) ? n.classId : null
+      })),
+      breaks: arr(data.breaks).map(normalizeBreak).filter(Boolean),
+      trash: arr(data.trash).slice(0, MAX_TRASH),
+      activity: arr(data.activity).filter(a => a && typeof a === 'object' && a.ts).slice(-2000),
+      settings: normalizeSettings(data.settings, prev && prev.settings)
+    };
+  }
+
+  function load() {
+    let raw = null;
+    try {
+      raw = global.localStorage.getItem(KEY);
+    } catch (e) {
+      console.warn('localStorage unavailable; data will not persist this session.', e);
+      return emptyState();
+    }
+    if (!raw) return emptyState();
+    try {
+      return normalize(JSON.parse(raw));
+    } catch (e) {
+      console.error('Saved data was corrupted; attempting backup recovery.', e);
+      const backups = listBackups();
+      if (backups.length) {
+        try {
+          return normalize(JSON.parse(backups[0].data));
+        } catch (e2) { /* fall through */ }
+      }
+      return emptyState();
+    }
+  }
+
+  let lastSaveInfo = { ok: null, at: null };
+
+  function save(state) {
+    try {
+      global.localStorage.setItem(KEY, JSON.stringify(state));
+      lastSaveInfo = { ok: true, at: new Date().toISOString() };
+      return true;
+    } catch (e) {
+      lastSaveInfo = { ok: false, at: new Date().toISOString() };
+      console.error('Failed to save data.', e);
+      if (global.UI && global.UI.toast) {
+        global.UI.toast('warning', 'Save failed', 'Storage is full or unavailable. Export a backup from Settings.');
+      }
+      return false;
+    }
+  }
+
+  function lastSave() { return lastSaveInfo; }
+
+  function probe() {
+    try {
+      const k = '__momentum_probe__';
+      global.localStorage.setItem(k, '1');
+      global.localStorage.removeItem(k);
+      return { ok: true, reason: '' };
+    } catch (e) {
+      const name = e && e.name;
+      return { ok: false, reason: name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED' ? 'quota' : 'blocked' };
+    }
+  }
+
+  /* ---- Automatic rolling backups (kept in localStorage, restore from Settings) ---- */
+  function snapshot(state) {
+    let backups = listBackups();
+    const data = JSON.stringify(state);
+    if (backups[0] && backups[0].data === data) return;
+    backups.unshift({ ts: new Date().toISOString(), data });
+    backups = backups.slice(0, MAX_BACKUPS);
+    try {
+      global.localStorage.setItem(BACKUP_KEY, JSON.stringify(backups));
+    } catch (e) { /* backups are best-effort */ }
+  }
+
+  function listBackups() {
+    try {
+      const raw = global.localStorage.getItem(BACKUP_KEY);
+      const arrp = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arrp) ? arrp.filter(b => b && b.ts && b.data) : [];
+    } catch (e) { return []; }
+  }
+
+  function restoreBackup(ts) {
+    const b = listBackups().find(x => x.ts === ts);
+    if (!b) return false;
+    try {
+      const parsed = normalize(JSON.parse(b.data));
+      if (!save(parsed)) return false;
+      return parsed;
+    } catch (e) { return false; }
+  }
+
+  /* ---- Trash (protection against accidental deletion) ---- */
+  function pushTrash(state, type, item, label) {
+    state.trash.unshift({
+      id: item.id,
+      type,
+      label: label || item.title || item.name || 'Item',
+      item: JSON.parse(JSON.stringify(item)),
+      deletedAt: new Date().toISOString()
+    });
+    state.trash = state.trash.slice(0, MAX_TRASH);
+  }
+
+  function restoreFromTrash(state, trashId) {
+    const idx = state.trash.findIndex(t => t.id === trashId);
+    if (idx === -1) return null;
+    const entry = state.trash[idx];
+    state.trash.splice(idx, 1);
+    const raw = JSON.parse(JSON.stringify(entry.item));
+    const restorers = {
+      task: { list: 'tasks', fn: normalizeTask },
+      project: { list: 'projects', fn: normalizeProject },
+      goal: { list: 'goals', fn: normalizeGoal },
+      note: { list: 'notes', fn: normalizeNote },
+      category: { list: 'categories', fn: normalizeCategory },
+      class: { list: 'classes', fn: normalizeClass },
+      event: { list: 'events', fn: normalizeEvent }
+    };
+    const r = restorers[entry.type];
+    if (!r) return null;
+    const item = r.fn(raw);
+    if (!item) return null;
+    state[r.list] = state[r.list].filter(x => x.id !== item.id);
+    state[r.list].push(item);
+    return { type: entry.type, item };
+  }
+
+  /* ---- Export / Import ---- */
+  function exportJson(state) {
+    const payload = { app: 'momentum-planner', exportedAt: new Date().toISOString(), data: state };
+    return JSON.stringify(payload, null, 2);
+  }
+
+  function importJson(text) {
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (e) {
+      return { error: 'That file is not valid JSON.' };
+    }
+    const data = parsed && parsed.data ? parsed.data : parsed;
+    if (!data || typeof data !== 'object' || !('tasks' in data)) {
+      return { error: 'This does not look like a Momentum backup file.' };
+    }
+    return { data: normalize(data) };
+  }
+
+  const Storage = {
+    KEY, PRIORITIES, STATUSES, RECURRENCE_TYPES, ASSIGNMENT_TYPES, SUBMISSION_STATES, MAX_ATTACHMENT_BYTES,
+    setProfile, key,
+    emptyState, normalize, normalizeTask, normalizeStudyKit, normalizeProject, normalizeGoal, normalizeNote, normalizeCategory, normalizeClass, normalizeEvent, normalizeSession, normalizeAttachment, normalizeBreak,
+    load, save, lastSave, probe, snapshot, listBackups, restoreBackup, pushTrash, restoreFromTrash, exportJson, importJson, profileId
+  };
+
+  global.Storage = Storage;
+  if (typeof module !== 'undefined' && module.exports) module.exports = Storage;
+})(typeof window !== 'undefined' ? window : globalThis);

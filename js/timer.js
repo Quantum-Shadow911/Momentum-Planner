@@ -2,14 +2,20 @@
 (function (global) {
   'use strict';
 
-  const KEY = 'momentum.timer.v1';
+  /* Timer state is stored per account so switching accounts never shows
+     another person's running timer. */
+  function timerKey() {
+    let pid = '';
+    try { pid = (global.Storage && Storage.profileId && Storage.profileId()) || ''; } catch (e) { pid = ''; }
+    return 'momentum.timer.v1' + (pid ? '.' + pid : '');
+  }
   let current = null;
   let tickListeners = new Set();
   let tickInterval = null;
 
   function load() {
     try {
-      const raw = global.localStorage.getItem(KEY);
+      const raw = global.localStorage.getItem(timerKey());
       if (!raw) return null;
       const t = JSON.parse(raw);
       if (!t || !t.taskId) return null;
@@ -19,8 +25,8 @@
 
   function persist() {
     try {
-      if (current) global.localStorage.setItem(KEY, JSON.stringify(current));
-      else global.localStorage.removeItem(KEY);
+      if (current) global.localStorage.setItem(timerKey(), JSON.stringify(current));
+      else global.localStorage.removeItem(timerKey());
     } catch (e) { /* best effort */ }
   }
 

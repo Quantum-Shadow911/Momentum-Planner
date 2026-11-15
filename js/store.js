@@ -434,9 +434,11 @@
   }
 
   function replaceState(next) {
+    if (!Storage.save(next)) return false;
     state = next;
-    persist();
+    Storage.snapshot(state);
     emit({ type: 'state-replaced' });
+    return true;
   }
 
   function restoreTrash(trashId) {

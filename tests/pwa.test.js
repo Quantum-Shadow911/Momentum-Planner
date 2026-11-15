@@ -39,7 +39,7 @@ describe('PWA install support', () => {
 
   it('service worker caches the app shell, refreshes on navigation and cleans old caches', () => {
     const sw = readFileSync(root + 'sw.js', 'utf8');
-    expect(sw).toContain("const CACHE = 'momentum-v2.4.12'");
+    expect(sw).toContain("const CACHE = 'momentum-v2.4.13'");
     expect(sw).toContain("addEventListener('install'");
     expect(sw).toContain("addEventListener('activate'");
     expect(sw).toContain("addEventListener('fetch'");

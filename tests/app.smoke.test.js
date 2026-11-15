@@ -77,8 +77,8 @@ describe('app boot', () => {
     expect(Store.get().classes.length).toBe(7);
     expect(Store.get().events.length).toBe(0);
     expect(Store.get().breaks.length).toBe(1);
-    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.12-forgot-password');
-    expect(Store.get().settings.lastVersion).toBe('2.4.12-forgot-password');
+    expect(document.getElementById('appVersion').textContent).toBe('Momentum v2.4.13');
+    expect(Store.get().settings.lastVersion).toBe('2.4.13');
     expect(document.getElementById('modalRoot').children.length).toBe(0);
     expect(document.querySelectorAll('.nav-item').length).toBe(13);
     const navViews = [...document.querySelectorAll('.nav-item')].map(b => b.dataset.view);
@@ -483,5 +483,53 @@ describe('study timer & essentials page', () => {
     expect(rows.length).toBe(1);
     expect(rows[0].textContent).toContain('Study this');
     Store.deleteTask(t.id);
+  });
+});
+
+describe('safety & storage reliability', () => {
+  it('task viewer blocks javascript: links and keeps safe https links clickable', () => {
+    const t = Store.saveTask({
+      title: 'Link safety task',
+      links: [
+        { url: 'javascript:alert(1)', label: 'Evil link' },
+        { url: 'https://example.com/homework', label: 'Good link' }
+      ]
+    });
+    UI.openTaskViewer(t.id);
+    const modal = document.querySelector('.modal-backdrop .modal');
+    expect(modal).toBeTruthy();
+    expect(modal.querySelector('a[href="javascript:alert(1)"]')).toBeNull();
+    expect(modal.textContent).toContain('link blocked for safety');
+    const good = modal.querySelector('a[href="https://example.com/homework"]');
+    expect(good).toBeTruthy();
+    expect(good.getAttribute('rel')).toContain('noopener');
+    document.querySelector('.modal-backdrop [data-close]').click();
+    Store.deleteTask(t.id);
+  });
+
+  it('attachment download buttons only render for data: URLs', () => {
+    const t = Store.saveTask({
+      title: 'Attachment safety task',
+      attachments: [
+        { name: 'worksheet.pdf', size: 2048, dataUrl: 'data:application/pdf;base64,AAA' },
+        { name: 'sneaky.txt', size: 100, dataUrl: 'javascript:alert(1)' }
+      ]
+    });
+    UI.openTaskViewer(t.id);
+    const modal = document.querySelector('.modal-backdrop .modal');
+    const dls = [...modal.querySelectorAll('a[download]')];
+    expect(dls.length).toBe(1);
+    expect(dls[0].getAttribute('href').startsWith('data:')).toBe(true);
+    document.querySelector('.modal-backdrop [data-close]').click();
+    Store.deleteTask(t.id);
+  });
+
+  it('storage meter counts automatic backups in the total', () => {
+    const state = Store.get();
+    Storage.snapshot(state);
+    App.go('settings');
+    const meter = document.getElementById('storageMeter');
+    expect(meter.textContent).toContain('automatic backups');
+    expect(meter.textContent).toContain('snapshot');
   });
 });

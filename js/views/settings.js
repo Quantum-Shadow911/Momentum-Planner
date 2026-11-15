@@ -6,12 +6,20 @@
     if (!el) return;
     let bytes = 0;
     try { bytes = (localStorage.getItem(Storage.key()) || '').length * 2; } catch (e) { bytes = 0; }
+    let backupBytes = 0; let backupCount = 0;
+    try {
+      const backups = Storage.listBackups();
+      backupCount = backups.length;
+      backupBytes = backups.reduce((n, b) => n + ((b.data || '').length * 2), 0);
+    } catch (e) { backupBytes = 0; }
+    const total = bytes + backupBytes;
     const state = Store.get();
     const atts = state.tasks.reduce((n, t) => n + ((t.attachments || []).length), 0);
     const quota = 5 * 1024 * 1024;
-    const pct = Math.min(100, Math.round((bytes / quota) * 100));
+    const pct = Math.min(100, Math.round((total / quota) * 100));
     const kb = Math.max(1, Math.round(bytes / 1024));
-    const warn = bytes > 4 * 1024 * 1024;
+    const kbBackups = Math.max(1, Math.round(backupBytes / 1024));
+    const warn = total > 4 * 1024 * 1024;
     const probe = Storage.probe();
     const ls = Storage.lastSave();
     let status;
@@ -26,8 +34,9 @@
     el.innerHTML = `
       <div class="meter-row">
         <span class="bar"><span class="bar-fill ${warn ? 'bar-red' : 'bar-green'}" style="width:${pct}%"></span></span>
-        <span class="muted small">${kb} KB of ~5 MB browser storage used (${pct}%)</span>
+        <span class="muted small">${Math.max(1, Math.round(total / 1024))} KB of ~5 MB browser storage used (${pct}%)</span>
       </div>
+      <div class="muted small">Planner data ${kb} KB \u00b7 automatic backups ${kbBackups} KB (${backupCount} snapshot${backupCount === 1 ? '' : 's'})</div>
       <div class="muted small">${status}</div>
       <div class="muted small">${atts} attachment${atts === 1 ? '' : 's'} stored${warn ? ' — <strong style="color:var(--red)">storage is nearly full; export a backup and remove large attachments.</strong>' : ''}</div>`;
   }
@@ -336,7 +345,11 @@
             {
               label: 'Replace data', class: 'btn-primary',
               onClick: () => {
-                Store.replaceState(res.data);
+                const saved = Store.replaceState(res.data);
+                if (!saved) {
+                  UI.toast('danger', 'Import failed', 'Could not save \u2014 storage is full or unavailable. Your current data was not changed.');
+                  return false;
+                }
                 UI.toast('success', 'Backup imported', 'All data has been restored.');
                 UI.closeModal();
               }
@@ -372,10 +385,13 @@
             message: 'Current data will be replaced by this snapshot. It was captured automatically.',
             confirmLabel: 'Restore'
           });
-          if (ok && Storage.restoreBackup(b.ts)) {
+          if (!ok) return;
+          const restored = Storage.restoreBackup(b.ts);
+          if (restored) {
+            Store.replaceState(restored);
             UI.toast('success', 'Snapshot restored', 'Your data was rolled back.');
-          } else if (ok) {
-            UI.toast('danger', 'Restore failed', 'The snapshot could not be read.');
+          } else {
+            UI.toast('danger', 'Restore failed', 'The snapshot could not be saved \u2014 storage may be full. Export a backup, free up space, then try again.');
           }
         });
         backupList.appendChild(row);

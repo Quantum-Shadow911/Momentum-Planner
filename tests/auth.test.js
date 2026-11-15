@@ -134,12 +134,23 @@ describe('account data layer', () => {
     expect(dom.window.localStorage.getItem('momentum.data.v1.' + prof.id)).toBeNull();
   });
 
-  it('the Advait Anand account keeps the sample classes', () => {
+  it('only accounts explicitly marked as the owner keep the sample classes', () => {
     const prof = Auth.createProfile(acct({ name: 'Advait Anand', username: 'advait', email: 'advait@example.com' })).profile;
+    Auth.markKeepSample(prof.id);
     Storage.setProfile(prof.id);
     App.startApp(prof.id);
     expect(Store.get().classes.length).toBe(7);
     expect(Store.get().classes[0].teacher).toContain('Khichadia');
+    Auth.logout();
+    App.boot();
+  });
+
+  it('the name alone never grants sample data, even for the owner\'s name', () => {
+    const prof = Auth.createProfile(acct({ name: 'Advait Anand', username: 'advait2', email: 'advait2@example.com' })).profile;
+    Storage.setProfile(prof.id);
+    App.startApp(prof.id);
+    expect(Store.get().classes.length).toBe(0);
+    expect(Store.get().tasks.length).toBe(0);
     Auth.logout();
     App.boot();
   });

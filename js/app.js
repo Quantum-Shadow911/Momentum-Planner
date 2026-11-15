@@ -4,7 +4,7 @@
 
   const H = s => Utils.escapeHtml(s);
 
-  const APP_VERSION = '2.4.12-forgot-password';
+  const APP_VERSION = '2.4.13';
 
   const NAV = [
     { section: 'Overview' },
@@ -293,6 +293,7 @@
     const profile = profileId ? Auth.profiles().find(p => p.id === profileId) : Auth.sessionProfile();
     if (!profile) { showLogin(); return; }
     Storage.setProfile(profile.id);
+    Timer.init();
     const appEl = document.getElementById('app');
     if (appEl) appEl.style.display = '';
     const lr = document.getElementById('loginRoot');
@@ -308,11 +309,7 @@
     const lockBtn = document.getElementById('lockBtn');
     if (lockBtn) {
       lockBtn.style.display = '';
-      lockBtn.onclick = () => { Auth.logout(); boot(); };
-    }
-    if (!profile.keepSample && (profile.name || '').toLowerCase().includes('advait')) {
-      Auth.markKeepSample(profile.id);
-      profile.keepSample = true;
+      lockBtn.onclick = () => { Timer.pause(); Auth.logout(); boot(); };
     }
     if (!Store.get().settings.userName) Store.updateSettings({ userName: profile.name });
     purgeSample(profile);

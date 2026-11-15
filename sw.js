@@ -1,7 +1,7 @@
 /* Momentum service worker — makes the planner installable and fast.
    Strategy: network-first for page navigations (updates arrive on reload),
    stale-while-revalidate for other assets. */
-const CACHE = 'momentum-v2.4.12';
+const CACHE = 'momentum-v2.4.13';
 const CORE = [
   './',
   './index.html',

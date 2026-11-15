@@ -4,6 +4,17 @@
 
   const H = s => Utils.escapeHtml(s);
 
+  /* Only allow safe URL schemes in user-provided links (blocks javascript:, data:, vbscript:...). */
+  function safeUrl(u) {
+    const raw = String(u || '').trim();
+    if (!raw) return null;
+    try {
+      const parsed = new URL(raw, 'https://momentum.invalid');
+      if (['http:', 'https:', 'mailto:'].includes(parsed.protocol)) return raw;
+      return null;
+    } catch (e) { return null; }
+  }
+
   /* ================= Toasts ================= */
   function toast(kind, title, msg, onClick) {
     const root = document.getElementById('toastRoot');
@@ -304,14 +315,20 @@
           ${project ? `<dt>Project</dt><dd>${H(project.icon)} ${H(project.name)}</dd>` : ''}
           ${deps.length ? `<dt>Depends on</dt><dd>${deps.map(d => `${d.status === 'completed' ? '✅' : '⬜'} ${H(d.title)}`).join('<br>')}</dd>` : ''}
           ${t.reminders.length ? `<dt>Reminders</dt><dd>${t.reminders.map(m => H(reminderLabel(m))).join('<br>')}</dd>` : ''}
-          ${t.links.length ? `<dt>Links</dt><dd>${t.links.map(l => `<a href="${H(l.url)}" target="_blank" rel="noopener">${H(l.label || l.url)}</a>`).join('<br>')}</dd>` : ''}
+          ${t.links.length ? `<dt>Links</dt><dd>${t.links.map(l => {
+            const su = safeUrl(l.url);
+            return su ? `<a href="${H(su)}" target="_blank" rel="noopener noreferrer">${H(l.label || l.url)}</a>` : `<span class="muted">${H(l.label || l.url)} (link blocked for safety)</span>`;
+          }).join('<br>')}</dd>` : ''}
         </dl>
       </div>
       ${t.notes ? `<div class="detail-section"><h4>Notes</h4><p style="margin:0;color:var(--text-2);white-space:pre-wrap">${H(t.notes)}</p></div>` : ''}
       ${t.attachments && t.attachments.length ? `
       <div class="detail-section">
         <h4>📎 Attachments (${t.attachments.length})</h4>
-        ${t.attachments.map(a => `<div class="settings-row"><div class="s-label">${H(a.name)}</div><div class="s-desc">${H(Math.max(1, Math.round(a.size / 1024)))} KB</div><a class="btn btn-sm" href="${H(a.dataUrl)}" download="${H(a.name)}">Download</a></div>`).join('')}
+        ${t.attachments.map(a => {
+          const dl = typeof a.dataUrl === 'string' && a.dataUrl.startsWith('data:') ? `<a class="btn btn-sm" href="${H(a.dataUrl)}" download="${H(a.name)}">Download</a>` : '';
+          return `<div class="settings-row"><div class="s-label">${H(a.name)}</div><div class="s-desc">${H(Math.max(1, Math.round(a.size / 1024)))} KB</div>${dl}</div>`;
+        }).join('')}
       </div>` : ''}
     `;
     body.querySelectorAll('[data-sub]').forEach(btn => {

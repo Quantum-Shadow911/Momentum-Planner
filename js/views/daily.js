@@ -28,6 +28,7 @@
         <div><h2>Daily Planner</h2><div class="sub">Drag tasks between hours to reschedule. Click a task for details.</div></div>
         <div class="row">
           <button class="btn" id="dBalance" title="Move study sessions off overloaded days">⚖ Balance workload</button>
+          <button class="btn" id="dSuggest" title="Suggest study sessions for upcoming deadlines, placed after your last class on lighter days">✨ Suggest sessions</button>
           <button class="btn" id="dToday">Today</button>
           <button class="icon-btn" id="dPrev" aria-label="Previous day">←</button>
           <button class="icon-btn" id="dNext" aria-label="Next day">→</button>
@@ -70,6 +71,38 @@
     host.querySelector('#dPrev').addEventListener('click', () => { currentDate = Utils.addDays(currentDate, -1); render(host); });
     host.querySelector('#dNext').addEventListener('click', () => { currentDate = Utils.addDays(currentDate, 1); render(host); });
     host.querySelector('#dToday').addEventListener('click', () => { currentDate = Utils.todayStr(); render(host); });
+    host.querySelector('#dSuggest').addEventListener('click', () => {
+      const plans = AI.suggestPlan(Store.get(), currentDate);
+      if (!plans.length) { UI.toast('info', 'Nothing to suggest', 'No upcoming deadlines need extra sessions — you are already on track.'); return; }
+      const body = document.createElement('div');
+      body.innerHTML = `
+        <p class="muted small" style="margin-top:0">Suggested study sessions for upcoming deadlines — placed after your last class on days with room left. Tick what you want, then apply.</p>
+        <div id="planList">${plans.map((pl, i) => `
+          <label class="settings-row" style="cursor:pointer">
+            <input type="checkbox" class="plan-check" data-i="${i}" checked style="margin-right:10px">
+            <div class="grow"><div class="s-label">${H(pl.taskTitle)}</div>
+            <div class="s-desc">${H(Utils.fmtDateSmart(pl.date))} · ${H(Utils.fmtTime(pl.time))} · ${H(Utils.fmtDuration(pl.durationMin))} — ${H(pl.objective)}</div></div>
+          </label>`).join('')}</div>`;
+      UI.openModal({
+        title: '✨ Suggested study plan', body,
+        buttons: [
+          { label: 'Cancel', onClick: () => UI.closeModal() },
+          { label: 'Apply', class: 'btn-primary', onClick: () => {
+              const checks = [...body.querySelectorAll('.plan-check')];
+              let n = 0;
+              checks.forEach(c => {
+                if (!c.checked) return;
+                const pl = plans[Number(c.dataset.i)];
+                Store.addSession(pl.taskId, { date: pl.date, time: pl.time, durationMin: pl.durationMin, objective: pl.objective });
+                n++;
+              });
+              UI.closeModal();
+              UI.toast('success', 'Sessions added', n + ' study session(s) added to your plan.');
+              render(host);
+            } }
+        ]
+      });
+    });
     host.querySelector('#dBalance').addEventListener('click', () => {
       UI.openSuggestionModal({
         title: '⚖ Balance workload',

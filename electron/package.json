@@ -1,7 +1,7 @@
 {
   "name": "momentum",
   "productName": "Momentum",
-  "version": "2.4.13",
+  "version": "2.5.0",
   "description": "Momentum \u2014 all-in-one productivity planner (desktop app)",
   "main": "main.js",
   "scripts": {

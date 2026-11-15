@@ -1,6 +1,6 @@
 {
   "name": "momentum-planner",
-  "version": "2.4.13",
+  "version": "2.5.0",
   "description": "Momentum — an all-in-one productivity planner: tasks, calendar, projects, goals, analytics and reminders.",
   "private": true,
   "type": "module",
